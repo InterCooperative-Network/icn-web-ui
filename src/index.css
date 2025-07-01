@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+  }
+}
+
+@layer components {
+  /* ICN-specific component styles */
+  .icn-card {
+    @apply rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800;
+  }
+
+  .icn-button-primary {
+    @apply rounded-md bg-icn-primary px-4 py-2 font-medium text-white transition-colors hover:bg-icn-primary/90;
+  }
+
+  .icn-button-secondary {
+    @apply rounded-md bg-icn-secondary px-4 py-2 font-medium text-white transition-colors hover:bg-icn-secondary/90;
+  }
+
+  .icn-input {
+    @apply rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-icn-primary dark:border-gray-600;
+  }
+
+  .mana-gradient {
+    @apply bg-gradient-to-r from-mana-500 to-mana-600;
+  }
+
+  .status-indicator {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .status-online {
+    @apply status-indicator bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100;
+  }
+
+  .status-offline {
+    @apply status-indicator bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100;
+  }
+
+  .status-pending {
+    @apply status-indicator bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
