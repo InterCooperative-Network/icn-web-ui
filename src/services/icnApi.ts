@@ -16,6 +16,10 @@ import type {
   Did,
   JobId,
   ProposalId,
+  NodeInfo,
+  NodeStatus,
+  DagBlock,
+  Cid,
 } from '@/types/icn';
 
 export class ICNApiError extends Error {
@@ -33,7 +37,7 @@ export class ICNApiError extends Error {
 export class ICNApiClient {
   private client: AxiosInstance;
 
-  constructor(baseURL: string = 'http://localhost:8080/api/v1') {
+  constructor(baseURL: string = 'http://localhost:8080') {
     this.client = axios.create({
       baseURL,
       timeout: 30000,
@@ -50,8 +54,8 @@ export class ICNApiClient {
           const apiError = error.response.data;
           throw new ICNApiError(
             error.response.status,
-            apiError.error_code,
-            apiError.message,
+            apiError.error_code || 'UNKNOWN_ERROR',
+            apiError.message || error.message,
             apiError.details
           );
         }
@@ -69,147 +73,142 @@ export class ICNApiClient {
     delete this.client.defaults.headers.common['Authorization'];
   }
 
-  // Account Management
-  async getAccount(did: Did): Promise<ManaAccount> {
-    const response = await this.client.get<ApiResponse<ManaAccount>>(`/accounts/${did}`);
-    return response.data.data;
-  }
-
-  async getAccountTransactions(
-    did: Did,
-    page: number = 1,
-    limit: number = 50
-  ): Promise<PaginatedResponse<ManaTransaction>> {
-    const response = await this.client.get<PaginatedResponse<ManaTransaction>>(
-      `/accounts/${did}/transactions`,
-      {
-        params: { page, limit },
-      }
-    );
+  // Node Information
+  async getNodeInfo(): Promise<NodeInfo> {
+    const response = await this.client.get<NodeInfo>('/info');
     return response.data;
   }
 
-  async transferMana(fromDid: Did, toDid: Did, amount: number): Promise<void> {
-    await this.client.post('/accounts/transfer', {
-      from: fromDid,
-      to: toDid,
-      amount,
-    });
+  async getNodeStatus(): Promise<NodeStatus> {
+    const response = await this.client.get<NodeStatus>('/status');
+    return response.data;
   }
 
-  // Job Management
-  async getJobs(
-    page: number = 1,
-    limit: number = 20,
-    status?: string,
-    submitter?: Did
-  ): Promise<PaginatedResponse<MeshJob>> {
-    const response = await this.client.get<PaginatedResponse<MeshJob>>('/jobs', {
-      params: { page, limit, status, submitter },
-    });
+  async healthCheck(): Promise<{ status: string; timestamp: string }> {
+    const response = await this.client.get<{ status: string; timestamp: string }>('/health');
+    return response.data;
+  }
+
+  // Account Management (Mana)
+  async getAccountMana(did: Did): Promise<ManaAccount> {
+    const response = await this.client.get<ManaAccount>(`/account/${did}/mana`);
+    return response.data;
+  }
+
+  async getReputation(did: Did): Promise<{ reputation: number }> {
+    const response = await this.client.get<{ reputation: number }>(`/reputation/${did}`);
+    return response.data;
+  }
+
+  // Job Management (Mesh)
+  async submitJob(request: SubmitJobRequest): Promise<SubmitJobResponse> {
+    const response = await this.client.post<SubmitJobResponse>('/mesh/submit', request);
+    return response.data;
+  }
+
+  async getJobs(): Promise<MeshJob[]> {
+    const response = await this.client.get<MeshJob[]>('/mesh/jobs');
     return response.data;
   }
 
   async getJob(jobId: JobId): Promise<MeshJob> {
-    const response = await this.client.get<ApiResponse<MeshJob>>(`/jobs/${jobId}`);
-    return response.data.data;
-  }
-
-  async submitJob(request: SubmitJobRequest): Promise<SubmitJobResponse> {
-    const response = await this.client.post<ApiResponse<SubmitJobResponse>>('/jobs', request);
-    return response.data.data;
-  }
-
-  async cancelJob(jobId: JobId): Promise<void> {
-    await this.client.delete(`/jobs/${jobId}`);
-  }
-
-  async getJobBids(jobId: JobId): Promise<JobBid[]> {
-    const response = await this.client.get<ApiResponse<JobBid[]>>(`/jobs/${jobId}/bids`);
-    return response.data.data;
+    const response = await this.client.get<MeshJob>(`/mesh/jobs/${jobId}`);
+    return response.data;
   }
 
   // Governance
-  async getProposals(
-    page: number = 1,
-    limit: number = 20,
-    status?: string
-  ): Promise<PaginatedResponse<Proposal>> {
-    const response = await this.client.get<PaginatedResponse<Proposal>>('/proposals', {
-      params: { page, limit, status },
-    });
+  async submitProposal(proposal: {
+    proposer_did: string;
+    proposal: any;
+    description: string;
+    duration_secs: number;
+  }): Promise<{ proposal_id: string }> {
+    const response = await this.client.post<{ proposal_id: string }>('/governance/submit', proposal);
+    return response.data;
+  }
+
+  async getProposals(): Promise<Proposal[]> {
+    const response = await this.client.get<Proposal[]>('/governance/proposals');
     return response.data;
   }
 
   async getProposal(proposalId: ProposalId): Promise<Proposal> {
-    const response = await this.client.get<ApiResponse<Proposal>>(`/proposals/${proposalId}`);
-    return response.data.data;
-  }
-
-  async submitProposal(proposal: {
-    title: string;
-    description: string;
-    proposal_type: string;
-    changes: any[];
-    voting_period_days: number;
-  }): Promise<Proposal> {
-    const response = await this.client.post<ApiResponse<Proposal>>('/proposals', proposal);
-    return response.data.data;
-  }
-
-  async vote(
-    proposalId: ProposalId,
-    voteType: 'For' | 'Against' | 'Abstain',
-    reason?: string
-  ): Promise<void> {
-    await this.client.post(`/proposals/${proposalId}/vote`, {
-      vote_type: voteType,
-      reason,
-    });
-  }
-
-  async getProposalVotes(proposalId: ProposalId): Promise<Vote[]> {
-    const response = await this.client.get<ApiResponse<Vote[]>>(`/proposals/${proposalId}/votes`);
-    return response.data.data;
-  }
-
-  // Network
-  async getNetworkStats(): Promise<NetworkStats> {
-    const response = await this.client.get<ApiResponse<NetworkStats>>('/network/stats');
-    return response.data.data;
-  }
-
-  async getNetworkPeers(
-    page: number = 1,
-    limit: number = 50,
-    status?: string
-  ): Promise<PaginatedResponse<NetworkPeer>> {
-    const response = await this.client.get<PaginatedResponse<NetworkPeer>>('/network/peers', {
-      params: { page, limit, status },
-    });
+    const response = await this.client.get<Proposal>(`/governance/proposal/${proposalId}`);
     return response.data;
   }
 
-  async getPeer(peerId: string): Promise<NetworkPeer> {
-    const response = await this.client.get<ApiResponse<NetworkPeer>>(`/network/peers/${peerId}`);
-    return response.data.data;
+  async vote(proposalId: ProposalId, voteRequest: {
+    voter_did: string;
+    proposal_id: string;
+    vote_option: string;
+  }): Promise<void> {
+    await this.client.post(`/governance/vote`, voteRequest);
+  }
+
+  // Network
+  async getNetworkPeers(): Promise<string[]> {
+    const response = await this.client.get<string[]>('/network/peers');
+    return response.data;
+  }
+
+  async getLocalPeerId(): Promise<{ peer_id: string }> {
+    const response = await this.client.get<{ peer_id: string }>('/network/local-peer-id');
+    return response.data;
+  }
+
+  // DAG Operations
+  async putDagBlock(block: DagBlock): Promise<Cid> {
+    const response = await this.client.post<string>('/dag/put', block);
+    return response.data;
+  }
+
+  async getDagBlock(cid: Cid): Promise<DagBlock> {
+    const response = await this.client.post<DagBlock>('/dag/get', { cid });
+    return response.data;
+  }
+
+  async getDagRoot(): Promise<{ root: Cid | null }> {
+    const response = await this.client.get<{ root: Cid | null }>('/dag/root');
+    return response.data;
+  }
+
+  async getDagStatus(): Promise<{ current_root: Cid | null; in_sync: boolean }> {
+    const response = await this.client.get<{ current_root: Cid | null; in_sync: boolean }>('/dag/status');
+    return response.data;
   }
 
   // Identity
-  async resolveDid(did: Did): Promise<any> {
-    const response = await this.client.get<ApiResponse<any>>(`/identity/${did}`);
-    return response.data.data;
+  async getKeys(): Promise<{ did: string; public_key_bs58: string }> {
+    const response = await this.client.get<{ did: string; public_key_bs58: string }>('/keys');
+    return response.data;
   }
 
-  async registerDid(didDocument: any): Promise<void> {
-    await this.client.post('/identity/register', didDocument);
+  // Federation
+  async getFederationPeers(): Promise<string[]> {
+    const response = await this.client.get<string[]>('/federation/peers');
+    return response.data;
+  }
+
+  async getFederationStatus(): Promise<{ status: string }> {
+    const response = await this.client.get<{ status: string }>('/federation/status');
+    return response.data;
+  }
+
+  // Metrics
+  async getMetrics(): Promise<string> {
+    const response = await this.client.get<string>('/metrics');
+    return response.data;
   }
 
   // Utilities
-  async healthCheck(): Promise<{ status: string; timestamp: string }> {
-    const response =
-      await this.client.get<ApiResponse<{ status: string; timestamp: string }>>('/health');
-    return response.data.data;
+  async submitTransaction(txJson: string): Promise<{ tx_id: string }> {
+    const response = await this.client.post<{ tx_id: string }>('/transaction/submit', { tx_json: txJson });
+    return response.data;
+  }
+
+  async queryData(cid: Cid): Promise<DagBlock | null> {
+    const response = await this.client.post<DagBlock | null>('/data/query', { cid });
+    return response.data;
   }
 }
 

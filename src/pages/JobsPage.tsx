@@ -1,42 +1,35 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { icnApi } from '@/services/icnApi';
+import type { MeshJob, SubmitJobRequest, JobSpecification } from '@/types/icn';
 import { 
   Plus, 
   Search, 
   Filter, 
   Play, 
-  Stop, 
-  Eye, 
-  Clock, 
   CheckCircle, 
   XCircle, 
-  Activity,
-  Zap,
-  Cpu,
-  HardDrive,
-  Wifi,
-  Briefcase
+  Clock,
+  AlertCircle,
+  Eye,
+  Trash2
 } from 'lucide-react';
-import { icnApi } from '../services/icnApi';
-import type { JobStatus, JobPriority, SubmitJobRequest } from '../types/icn';
 
-// Mock DID for development
-const MOCK_DID = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-
-export function JobsPage() {
+const JobsPage: React.FC = () => {
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<JobStatus | 'all'>('all');
-  const [priorityFilter, setPriorityFilter] = useState<JobPriority | 'all'>('all');
-  const [showSubmitForm, setShowSubmitForm] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<string | null>(null);
-  
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedJob, setSelectedJob] = useState<MeshJob | null>(null);
   const queryClient = useQueryClient();
 
-  // Fetch jobs with filters
-  const { data: jobs, isLoading } = useQuery({
-    queryKey: ['jobs', searchTerm, statusFilter, priorityFilter],
-    queryFn: () => icnApi.getJobs(1, 50, statusFilter === 'all' ? undefined : statusFilter),
-    staleTime: 30000,
+  // Fetch jobs
+  const { data: jobs = [], isLoading, error } = useQuery<MeshJob[]>({
+    queryKey: ['jobs'],
+    queryFn: () => icnApi.getJobs(),
+    refetchInterval: 10000, // Refresh every 10 seconds
   });
 
   // Submit job mutation
@@ -44,312 +37,164 @@ export function JobsPage() {
     mutationFn: (request: SubmitJobRequest) => icnApi.submitJob(request),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
-      setShowSubmitForm(false);
+      setShowSubmitModal(false);
     },
   });
 
-  // Cancel job mutation
-  const cancelJobMutation = useMutation({
-    mutationFn: (jobId: string) => icnApi.cancelJob(jobId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    },
-  });
-
-  const formatMana = (mana: number) => {
-    return new Intl.NumberFormat().format(mana);
-  };
-
-  const formatTimeAgo = (timestamp: string) => {
-    const now = new Date();
-    const time = new Date(timestamp);
-    const diffMs = now.getTime() - time.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
-  };
-
-  const getStatusColor = (status: JobStatus) => {
-    switch (status) {
-      case 'Completed':
-        return 'text-green-600 bg-green-100 dark:bg-green-800 dark:text-green-100';
-      case 'Running':
-        return 'text-blue-600 bg-blue-100 dark:bg-blue-800 dark:text-blue-100';
-      case 'Failed':
-        return 'text-red-600 bg-red-100 dark:bg-red-800 dark:text-red-100';
-      case 'Pending':
-        return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-800 dark:text-yellow-100';
-      case 'Bidding':
-        return 'text-purple-600 bg-purple-100 dark:bg-purple-800 dark:text-purple-100';
-      case 'Assigned':
-        return 'text-indigo-600 bg-indigo-100 dark:bg-indigo-800 dark:text-indigo-100';
-      case 'Cancelled':
-        return 'text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-100';
-      default:
-        return 'text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-100';
-    }
-  };
-
-  const getStatusIcon = (status: JobStatus) => {
-    switch (status) {
-      case 'Completed':
-        return <CheckCircle className="h-4 w-4" />;
-      case 'Running':
-        return <Activity className="h-4 w-4" />;
-      case 'Failed':
-        return <XCircle className="h-4 w-4" />;
-      case 'Pending':
-      case 'Bidding':
-      case 'Assigned':
-        return <Clock className="h-4 w-4" />;
-      case 'Cancelled':
-        return <Stop className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
-    }
-  };
-
-  const getPriorityColor = (priority: JobPriority) => {
-    switch (priority) {
-      case 'Critical':
-        return 'text-red-600';
-      case 'High':
-        return 'text-orange-600';
-      case 'Normal':
-        return 'text-blue-600';
-      case 'Low':
-        return 'text-gray-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
-
-  const filteredJobs = jobs?.data.filter(job => {
-    const matchesSearch = job.spec.command.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.id.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter jobs based on search and status
+  const filteredJobs = jobs.filter(job => {
+    const matchesSearch = job.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         job.spec.command.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || job.status === statusFilter;
     return matchesSearch && matchesStatus;
-  }) || [];
+  });
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Completed':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'Running':
+        return <Play className="w-4 h-4 text-blue-500" />;
+      case 'Failed':
+        return <XCircle className="w-4 h-4 text-red-500" />;
+      case 'Pending':
+      case 'Bidding':
+        return <Clock className="w-4 h-4 text-yellow-500" />;
+      default:
+        return <AlertCircle className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Completed':
+        return 'bg-green-100 text-green-800';
+      case 'Running':
+        return 'bg-blue-100 text-blue-800';
+      case 'Failed':
+        return 'bg-red-100 text-red-800';
+      case 'Pending':
+      case 'Bidding':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Jobs</h2>
+          <p className="text-gray-600">Failed to load jobs from the ICN node.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mesh Jobs</h1>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Manage and monitor computational jobs across the ICN mesh network
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">Jobs</h1>
+          <p className="text-gray-600 mt-1">Manage and monitor mesh computing jobs</p>
         </div>
-        <button
-          onClick={() => setShowSubmitForm(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-icn-primary hover:bg-icn-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-icn-primary"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Submit Job
-        </button>
+        <Button onClick={() => setShowSubmitModal(true)} className="flex items-center space-x-2">
+          <Plus className="w-4 h-4" />
+          <span>Submit Job</span>
+        </Button>
       </div>
 
       {/* Filters */}
-      <div className="icn-card p-4">
+      <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-4">
-          {/* Search */}
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
                 type="text"
-                placeholder="Search jobs by command or ID..."
+                placeholder="Search jobs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-2 focus:ring-icn-primary focus:border-transparent dark:border-gray-600 dark:bg-gray-800"
+                className="pl-10"
               />
             </div>
           </div>
-
-          {/* Status Filter */}
-          <div className="sm:w-48">
+          <div className="flex items-center space-x-2">
+            <Filter className="w-4 h-4 text-gray-400" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as JobStatus | 'all')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-icn-primary focus:border-transparent dark:border-gray-600 dark:bg-gray-800"
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Status</option>
               <option value="Pending">Pending</option>
               <option value="Bidding">Bidding</option>
-              <option value="Assigned">Assigned</option>
               <option value="Running">Running</option>
               <option value="Completed">Completed</option>
               <option value="Failed">Failed</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
-          </div>
-
-          {/* Priority Filter */}
-          <div className="sm:w-48">
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value as JobPriority | 'all')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-icn-primary focus:border-transparent dark:border-gray-600 dark:bg-gray-800"
-            >
-              <option value="all">All Priorities</option>
-              <option value="Critical">Critical</option>
-              <option value="High">High</option>
-              <option value="Normal">Normal</option>
-              <option value="Low">Low</option>
             </select>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Jobs List */}
-      <div className="icn-card">
-        <div className="px-4 py-5 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-              Jobs ({filteredJobs.length})
-            </h3>
-            {isLoading && (
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                Loading...
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            {filteredJobs.map((job) => (
+      <Card className="p-6">
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : filteredJobs.length === 0 ? (
+            <div className="text-center py-8">
+              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No jobs found</h3>
+              <p className="text-gray-600">No jobs match your current filters.</p>
+            </div>
+          ) : (
+            filteredJobs.map((job) => (
               <div
                 key={job.id}
-                className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(job.status)}`}>
-                      {getStatusIcon(job.status)}
-                      <span className="ml-1">{job.status}</span>
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {job.spec.command}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        ID: {job.id.substring(0, 8)}... • {formatTimeAgo(job.created_at)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-4">
-                    {/* Resource Requirements */}
-                    <div className="hidden sm:flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-                      <div className="flex items-center">
-                        <Cpu className="h-3 w-3 mr-1" />
-                        {job.spec.resources.cpu_cores}
-                      </div>
-                      <div className="flex items-center">
-                        <HardDrive className="h-3 w-3 mr-1" />
-                        {job.spec.resources.memory_mb}MB
-                      </div>
-                      <div className="flex items-center">
-                        <Wifi className="h-3 w-3 mr-1" />
-                        {job.spec.resources.disk_mb}MB
-                      </div>
-                    </div>
-
-                    {/* Cost */}
-                    <div className="flex items-center text-sm">
-                      <Zap className="h-4 w-4 text-mana-600 mr-1" />
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {formatMana(job.actual_cost || job.max_cost)}
-                      </span>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setSelectedJob(job.id)}
-                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        title="View Details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      {(job.status === 'Pending' || job.status === 'Bidding' || job.status === 'Assigned') && (
-                        <button
-                          onClick={() => cancelJobMutation.mutate(job.id)}
-                          disabled={cancelJobMutation.isPending}
-                          className="p-1 text-red-400 hover:text-red-600 dark:hover:text-red-300 disabled:opacity-50"
-                          title="Cancel Job"
-                        >
-                          <Stop className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
+                <div className="flex items-center space-x-4">
+                  {getStatusIcon(job.status)}
+                  <div>
+                    <h3 className="font-medium text-gray-900">
+                      {job.spec.command}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      ID: {job.id.slice(0, 8)}... | Submitted: {new Date(job.created_at).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
-
-                {/* Job Result (if completed) */}
-                {job.result && (
-                  <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
-                    <div className="text-xs text-gray-600 dark:text-gray-400">
-                      Exit Code: {job.result.exit_code} • 
-                      Execution Time: {job.result.execution_time_ms}ms
-                    </div>
-                    {job.result.stdout && (
-                      <div className="mt-1 text-xs font-mono text-gray-800 dark:text-gray-200">
-                        <div className="font-medium">Output:</div>
-                        <div className="whitespace-pre-wrap">{job.result.stdout}</div>
-                      </div>
-                    )}
-                    {job.result.stderr && (
-                      <div className="mt-1 text-xs font-mono text-red-600">
-                        <div className="font-medium">Error:</div>
-                        <div className="whitespace-pre-wrap">{job.result.stderr}</div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Error Message (if failed) */}
-                {job.error && (
-                  <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-md">
-                    <div className="text-xs text-red-600 dark:text-red-400">
-                      <div className="font-medium">Error:</div>
-                      {job.error}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {filteredJobs.length === 0 && !isLoading && (
-              <div className="text-center py-12">
-                <div className="text-gray-400 dark:text-gray-500 mb-4">
-                  <Briefcase className="h-12 w-12 mx-auto" />
+                <div className="flex items-center space-x-3">
+                  <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(job.status)}`}>
+                    {job.status}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedJob(job)}
+                    className="flex items-center space-x-1"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Details</span>
+                  </Button>
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                  No jobs found
-                </h3>
-                <p className="text-gray-500 dark:text-gray-400">
-                  {searchTerm || statusFilter !== 'all' 
-                    ? 'Try adjusting your filters or search terms.'
-                    : 'Get started by submitting your first mesh job.'
-                  }
-                </p>
               </div>
-            )}
-          </div>
+            ))
+          )}
         </div>
-      </div>
+      </Card>
 
-      {/* Job Submission Modal */}
-      {showSubmitForm && (
-        <JobSubmissionModal
+      {/* Submit Job Modal */}
+      {showSubmitModal && (
+        <SubmitJobModal
           onSubmit={(request) => submitJobMutation.mutate(request)}
-          onCancel={() => setShowSubmitForm(false)}
+          onClose={() => setShowSubmitModal(false)}
           isLoading={submitJobMutation.isPending}
         />
       )}
@@ -357,423 +202,358 @@ export function JobsPage() {
       {/* Job Details Modal */}
       {selectedJob && (
         <JobDetailsModal
-          jobId={selectedJob}
+          job={selectedJob}
           onClose={() => setSelectedJob(null)}
         />
       )}
     </div>
   );
+};
+
+// Submit Job Modal Component
+interface SubmitJobModalProps {
+  onSubmit: (request: SubmitJobRequest) => void;
+  onClose: () => void;
+  isLoading: boolean;
 }
 
-// Job Submission Modal Component
-function JobSubmissionModal({ 
-  onSubmit, 
-  onCancel, 
-  isLoading 
-}: { 
-  onSubmit: (request: SubmitJobRequest) => void;
-  onCancel: () => void;
-  isLoading: boolean;
-}) {
+const SubmitJobModal: React.FC<SubmitJobModalProps> = ({ onSubmit, onClose, isLoading }) => {
   const [formData, setFormData] = useState({
     command: '',
     args: '',
-    cpuCores: 1,
-    memoryMb: 512,
-    diskMb: 1024,
-    maxCost: 100,
-    priority: 'Normal' as JobPriority,
-    timeout: 300,
+    environment: '',
+    cpu_cores: 1,
+    memory_mb: 128,
+    disk_mb: 0,
+    max_cost: 100,
+    timeout_seconds: 300,
+    priority: 'Normal' as const,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const request: SubmitJobRequest = {
-      job_spec: {
-        command: formData.command,
-        args: formData.args.split(' ').filter(Boolean),
-        environment: {},
-        resources: {
-          cpu_cores: formData.cpuCores,
-          memory_mb: formData.memoryMb,
-          disk_mb: formData.diskMb,
-        },
-        timeout_seconds: formData.timeout,
+    
+    const jobSpec: JobSpecification = {
+      command: formData.command,
+      args: formData.args ? formData.args.split(' ').filter(Boolean) : [],
+      environment: formData.environment ? JSON.parse(formData.environment) : {},
+      resources: {
+        cpu_cores: formData.cpu_cores,
+        memory_mb: formData.memory_mb,
+        disk_mb: formData.disk_mb,
       },
-      max_cost: formData.maxCost,
+      timeout_seconds: formData.timeout_seconds,
+    };
+
+    const request: SubmitJobRequest = {
+      job_spec: jobSpec,
+      max_cost: formData.max_cost,
+      timeout_seconds: formData.timeout_seconds,
       priority: formData.priority,
       metadata: {},
     };
+
     onSubmit(request);
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl mx-4">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-          Submit New Job
-        </h2>
-        
+      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Submit New Job</h2>
+          <Button variant="ghost" onClick={onClose} size="sm">
+            ×
+          </Button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Command
             </label>
-            <input
+            <Input
               type="text"
               value={formData.command}
               onChange={(e) => setFormData({ ...formData, command: e.target.value })}
-              placeholder="e.g., python script.py"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-icn-primary focus:border-transparent dark:border-gray-600 dark:bg-gray-800"
+              placeholder="e.g., echo 'Hello World'"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Arguments
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Arguments (space-separated)
             </label>
-            <input
+            <Input
               type="text"
               value={formData.args}
               onChange={(e) => setFormData({ ...formData, args: e.target.value })}
-              placeholder="e.g., --input data.csv --output results.json"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-icn-primary focus:border-transparent dark:border-gray-600 dark:bg-gray-800"
+              placeholder="e.g., arg1 arg2 arg3"
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 CPU Cores
               </label>
-              <input
+              <Input
                 type="number"
                 min="1"
-                max="32"
-                value={formData.cpuCores}
-                onChange={(e) => setFormData({ ...formData, cpuCores: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-icn-primary focus:border-transparent dark:border-gray-600 dark:bg-gray-800"
+                max="16"
+                value={formData.cpu_cores}
+                onChange={(e) => setFormData({ ...formData, cpu_cores: parseInt(e.target.value) })}
+                required
               />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Memory (MB)
               </label>
-              <input
+              <Input
                 type="number"
-                min="128"
-                max="32768"
-                value={formData.memoryMb}
-                onChange={(e) => setFormData({ ...formData, memoryMb: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-icn-primary focus:border-transparent dark:border-gray-600 dark:bg-gray-800"
+                min="64"
+                max="8192"
+                value={formData.memory_mb}
+                onChange={(e) => setFormData({ ...formData, memory_mb: parseInt(e.target.value) })}
+                required
               />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Disk (MB)
               </label>
-              <input
+              <Input
                 type="number"
-                min="256"
-                max="65536"
-                value={formData.diskMb}
-                onChange={(e) => setFormData({ ...formData, diskMb: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-icn-primary focus:border-transparent dark:border-gray-600 dark:bg-gray-800"
+                min="0"
+                max="10240"
+                value={formData.disk_mb}
+                onChange={(e) => setFormData({ ...formData, disk_mb: parseInt(e.target.value) })}
+                required
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Max Cost (Mana)
               </label>
-              <input
+              <Input
                 type="number"
                 min="1"
-                value={formData.maxCost}
-                onChange={(e) => setFormData({ ...formData, maxCost: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-icn-primary focus:border-transparent dark:border-gray-600 dark:bg-gray-800"
+                value={formData.max_cost}
+                onChange={(e) => setFormData({ ...formData, max_cost: parseInt(e.target.value) })}
+                required
               />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Priority
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value as JobPriority })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-icn-primary focus:border-transparent dark:border-gray-600 dark:bg-gray-800"
-              >
-                <option value="Low">Low</option>
-                <option value="Normal">Normal</option>
-                <option value="High">High</option>
-                <option value="Critical">Critical</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Timeout (seconds)
               </label>
-              <input
+              <Input
                 type="number"
                 min="60"
                 max="3600"
-                value={formData.timeout}
-                onChange={(e) => setFormData({ ...formData, timeout: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-icn-primary focus:border-transparent dark:border-gray-600 dark:bg-gray-800"
+                value={formData.timeout_seconds}
+                onChange={(e) => setFormData({ ...formData, timeout_seconds: parseInt(e.target.value) })}
+                required
               />
             </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Priority
+            </label>
+            <select
+              value={formData.priority}
+              onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Low">Low</option>
+              <option value="Normal">Normal</option>
+              <option value="High">High</option>
+              <option value="Critical">Critical</option>
+            </select>
+          </div>
+
           <div className="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-icn-primary dark:bg-gray-700 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-600"
-            >
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="px-4 py-2 text-sm font-medium text-white bg-icn-primary border border-transparent rounded-md hover:bg-icn-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-icn-primary disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={isLoading}>
               {isLoading ? 'Submitting...' : 'Submit Job'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
     </div>
   );
-}
+};
 
 // Job Details Modal Component
-function JobDetailsModal({ jobId, onClose }: { jobId: string; onClose: () => void }) {
-  const { data: job, isLoading } = useQuery({
-    queryKey: ['job', jobId],
-    queryFn: () => icnApi.getJob(jobId),
-  });
+interface JobDetailsModalProps {
+  job: MeshJob;
+  onClose: () => void;
+}
 
-  const { data: bids } = useQuery({
-    queryKey: ['job-bids', jobId],
-    queryFn: () => icnApi.getJobBids(jobId),
-    enabled: !!job && (job.status === 'Bidding' || job.status === 'Assigned'),
-  });
-
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl mx-4">
-          <div className="text-center">Loading job details...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!job) {
-    return null;
-  }
-
+const JobDetailsModal: React.FC<JobDetailsModalProps> = ({ job, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            Job Details
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          >
-            <XCircle className="h-6 w-6" />
-          </button>
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900">Job Details</h2>
+          <Button variant="ghost" onClick={onClose} size="sm">
+            ×
+          </Button>
         </div>
 
-        <div className="space-y-6">
-          {/* Basic Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Basic Information</h3>
-              <dl className="space-y-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Basic Information</h3>
+              <div className="space-y-2">
                 <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Job ID</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white font-mono">{job.id}</dd>
+                  <span className="text-sm font-medium text-gray-600">Job ID:</span>
+                  <p className="text-sm text-gray-900 font-mono">{job.id}</p>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white">{job.status}</dd>
+                  <span className="text-sm font-medium text-gray-600">Status:</span>
+                  <span className={`ml-2 px-2 py-1 text-xs rounded-full ${getStatusColor(job.status)}`}>
+                    {job.status}
+                  </span>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Submitter</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white font-mono">{job.submitter}</dd>
+                  <span className="text-sm font-medium text-gray-600">Submitter:</span>
+                  <p className="text-sm text-gray-900">{job.submitter}</p>
                 </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Executor</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white font-mono">{job.executor || 'Not assigned'}</dd>
-                </div>
-              </dl>
+                {job.executor && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Executor:</span>
+                    <p className="text-sm text-gray-900">{job.executor}</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Timing</h3>
-              <dl className="space-y-2">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Timing</h3>
+              <div className="space-y-2">
                 <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Created</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white">{new Date(job.created_at).toLocaleString()}</dd>
+                  <span className="text-sm font-medium text-gray-600">Created:</span>
+                  <p className="text-sm text-gray-900">{new Date(job.created_at).toLocaleString()}</p>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Updated</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white">{new Date(job.updated_at).toLocaleString()}</dd>
+                  <span className="text-sm font-medium text-gray-600">Updated:</span>
+                  <p className="text-sm text-gray-900">{new Date(job.updated_at).toLocaleString()}</p>
                 </div>
                 {job.completed_at && (
                   <div>
-                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed</dt>
-                    <dd className="text-sm text-gray-900 dark:text-white">{new Date(job.completed_at).toLocaleString()}</dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-          </div>
-
-          {/* Job Specification */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Job Specification</h3>
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Command</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white font-mono">{job.spec.command}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Arguments</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white font-mono">{job.spec.args.join(' ')}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">CPU Cores</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white">{job.spec.resources.cpu_cores}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Memory</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white">{job.spec.resources.memory_mb} MB</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Disk</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white">{job.spec.resources.disk_mb} MB</dd>
-                </div>
-                <div>
-                  <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Timeout</dt>
-                  <dd className="text-sm text-gray-900 dark:text-white">{job.spec.timeout_seconds || 'Default'} seconds</dd>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Cost Information */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Cost Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Maximum Cost</dt>
-                <dd className="text-sm text-gray-900 dark:text-white">{formatMana(job.max_cost)} mana</dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Actual Cost</dt>
-                <dd className="text-sm text-gray-900 dark:text-white">{job.actual_cost ? formatMana(job.actual_cost) : 'Not charged yet'} mana</dd>
-              </div>
-            </div>
-          </div>
-
-          {/* Job Result */}
-          {job.result && (
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Execution Result</h3>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Success</dt>
-                    <dd className="text-sm text-gray-900 dark:text-white">{job.result.success ? 'Yes' : 'No'}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Exit Code</dt>
-                    <dd className="text-sm text-gray-900 dark:text-white">{job.result.exit_code}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Execution Time</dt>
-                    <dd className="text-sm text-gray-900 dark:text-white">{job.result.execution_time_ms} ms</dd>
-                  </div>
-                </div>
-
-                {job.result.stdout && (
-                  <div className="mb-4">
-                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Standard Output</dt>
-                    <dd className="text-sm font-mono text-gray-900 dark:text-white bg-white dark:bg-gray-800 p-3 rounded border overflow-x-auto">
-                      <pre>{job.result.stdout}</pre>
-                    </dd>
-                  </div>
-                )}
-
-                {job.result.stderr && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Standard Error</dt>
-                    <dd className="text-sm font-mono text-red-600 bg-white dark:bg-gray-800 p-3 rounded border overflow-x-auto">
-                      <pre>{job.result.stderr}</pre>
-                    </dd>
+                    <span className="text-sm font-medium text-gray-600">Completed:</span>
+                    <p className="text-sm text-gray-900">{new Date(job.completed_at).toLocaleString()}</p>
                   </div>
                 )}
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Error Information */}
-          {job.error && (
+          <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Error Information</h3>
-              <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4">
-                <div className="text-sm text-red-600 dark:text-red-400">
-                  {job.error}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Bids (if applicable) */}
-          {bids && bids.length > 0 && (
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Bids ({bids.length})</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Specification</h3>
               <div className="space-y-2">
-                {bids.map((bid) => (
-                  <div key={bid.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {bid.executor}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Reputation: {bid.reputation_score.toFixed(2)}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {formatMana(bid.cost_bid)} mana
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Est. {bid.estimated_duration_seconds}s
-                        </div>
-                      </div>
-                    </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Command:</span>
+                  <p className="text-sm text-gray-900 font-mono">{job.spec.command}</p>
+                </div>
+                {job.spec.args.length > 0 && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Arguments:</span>
+                    <p className="text-sm text-gray-900 font-mono">{job.spec.args.join(' ')}</p>
                   </div>
-                ))}
+                )}
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Resources:</span>
+                  <p className="text-sm text-gray-900">
+                    {job.spec.resources.cpu_cores} CPU cores, {job.spec.resources.memory_mb}MB RAM, {job.spec.resources.disk_mb}MB disk
+                  </p>
+                </div>
               </div>
             </div>
-          )}
+
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Cost</h3>
+              <div className="space-y-2">
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Max Cost:</span>
+                  <p className="text-sm text-gray-900">{job.max_cost} mana</p>
+                </div>
+                {job.actual_cost && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Actual Cost:</span>
+                    <p className="text-sm text-gray-900">{job.actual_cost} mana</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {job.result && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Result</h3>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">Success:</span>
+                    <span className={`ml-2 px-2 py-1 text-xs rounded-full ${job.result.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {job.result.success ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                  {job.result.exit_code !== undefined && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Exit Code:</span>
+                      <p className="text-sm text-gray-900">{job.result.exit_code}</p>
+                    </div>
+                  )}
+                  {job.result.execution_time_ms && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">Execution Time:</span>
+                      <p className="text-sm text-gray-900">{job.result.execution_time_ms}ms</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {job.error && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Error</h3>
+                <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{job.error}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-6">
+          <Button onClick={onClose}>Close</Button>
         </div>
       </div>
     </div>
   );
-}
+};
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'Completed':
+      return 'bg-green-100 text-green-800';
+    case 'Running':
+      return 'bg-blue-100 text-blue-800';
+    case 'Failed':
+      return 'bg-red-100 text-red-800';
+    case 'Pending':
+    case 'Bidding':
+      return 'bg-yellow-100 text-yellow-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+export default JobsPage;

@@ -2,12 +2,14 @@
 
 A modern React-based web interface for the InterCooperative Network (ICN), providing comprehensive management capabilities for federations, cooperatives, and communities.
 
-## 🚀 Status: Ready for Development
+## 🚀 Status: Integrated with ICN Core
 
 ✅ **Environment Fixed**: Successfully migrated to Node.js 18 LTS  
 ✅ **Dependencies Installed**: All packages working correctly  
 ✅ **Development Server**: Running on http://localhost:3000  
+✅ **ICN Core Integration**: API client updated to match icn-core endpoints  
 ✅ **Core Features**: Dashboard, Jobs management, and UI components implemented  
+✅ **Real-time Updates**: Auto-refreshing data from icn-core  
 
 ## 🛠 Technology Stack
 
@@ -19,223 +21,247 @@ A modern React-based web interface for the InterCooperative Network (ICN), provi
 - **HTTP Client**: Axios
 - **Icons**: Lucide React
 - **Forms**: React Hook Form + Zod validation
-- **Node.js**: 18.20.8 LTS (required)
+- **Node.js**: 18.20.8 LTS
 
-## 📦 Installation
+## 📋 Prerequisites
 
-### Prerequisites
+- **Node.js 18 LTS** (managed via nvm)
+- **Rust toolchain** (for building icn-core)
+- **icn-core repository** (cloned in parent directory)
 
-- **Node.js 18 LTS** (required - the project includes `.nvmrc` for automatic version management)
-- npm or yarn package manager
+## 🚀 Quick Start
 
-### Quick Setup
+### 1. Setup Development Environment
 
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd icn-web-ui
-   ```
+```bash
+# Run the development setup script
+./dev-setup.sh
+```
 
-2. **Run the automated setup script**:
-   ```bash
-   ./setup-dev.sh
-   ```
-   
-   This script will:
-   - Install and configure Node.js 18 LTS using nvm
-   - Clean and reinstall dependencies
-   - Create environment configuration
-   - Test the development server
+This script will:
+- Verify Node.js 18 LTS is active
+- Build the icn-node binary from icn-core
+- Create configuration files
+- Generate development scripts
 
-3. **Start development**:
-   ```bash
-   npm run dev
-   ```
+### 2. Start Development Environment
 
-4. **Open your browser**:
-   Navigate to http://localhost:3000
+```bash
+# Start both icn-core and web UI
+./start-dev.sh
+```
 
-### Manual Setup
+This will start:
+- **ICN Node**: http://localhost:8080
+- **Web UI**: http://localhost:3000
 
-If you prefer manual setup:
+### 3. Test Integration
 
-1. **Ensure Node.js 18 LTS**:
-   ```bash
-   # Using nvm (recommended)
-   nvm install 18.20.8
-   nvm use 18.20.8
-   
-   # Or install directly from nodejs.org
-   ```
+```bash
+# Test API connectivity
+./test-api-connection.js
 
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+# Or test the full integration
+./test-integration.sh
+```
 
-3. **Create environment file**:
-   ```bash
-   cp .env.example .env.local
-   # Edit .env.local with your ICN API endpoint
-   ```
+## 🏗 Project Structure
 
-4. **Start development server**:
-   ```bash
-   npm run dev
-   ```
+```
+src/
+├── components/          # Reusable UI components
+│   └── ui/             # Base components (Button, Card, Input)
+├── pages/              # Page components
+│   ├── DashboardPage.tsx    # Main dashboard with real-time data
+│   ├── JobsPage.tsx         # Job management with submission
+│   ├── GovernancePage.tsx   # Governance interface
+│   ├── NetworkPage.tsx      # Network monitoring
+│   └── SettingsPage.tsx     # Configuration
+├── services/           # API and external services
+│   └── icnApi.ts      # ICN Core API client
+├── types/              # TypeScript type definitions
+│   └── icn.ts         # ICN API types
+├── utils/              # Utility functions
+└── layouts/            # Layout components
+```
+
+## 🔌 API Integration
+
+The web UI communicates with icn-core via HTTP API endpoints:
+
+### Node Information
+- `GET /info` - Node information and version
+- `GET /status` - Node operational status
+- `GET /health` - Health check
+
+### Mesh Computing (Jobs)
+- `POST /mesh/submit` - Submit new job
+- `GET /mesh/jobs` - List all jobs
+- `GET /mesh/jobs/{id}` - Get job details
+
+### Governance
+- `POST /governance/submit` - Submit proposal
+- `GET /governance/proposals` - List proposals
+- `GET /governance/proposal/{id}` - Get proposal
+- `POST /governance/vote` - Vote on proposal
+
+### Network
+- `GET /network/peers` - List network peers
+- `GET /network/local-peer-id` - Get local peer ID
+
+### DAG Operations
+- `POST /dag/put` - Store block
+- `POST /dag/get` - Retrieve block
+- `GET /dag/root` - Get root
+- `GET /dag/status` - Get status
+
+### Account Management
+- `GET /account/{did}/mana` - Get mana balance
+- `GET /reputation/{did}` - Get reputation score
+
+## 🎯 Features
+
+### Dashboard
+- Real-time node status and health
+- Job statistics and success rates
+- Network peer count and connectivity
+- Recent activity feed
+- Auto-refreshing data every 10-30 seconds
+
+### Job Management
+- Submit new mesh computing jobs
+- View job status and progress
+- Filter and search jobs
+- Detailed job information and results
+- Resource requirement specification
+
+### Governance (Planned)
+- View and create proposals
+- Vote on governance decisions
+- Track proposal status and results
+
+### Network Monitoring (Planned)
+- Peer discovery and status
+- Network topology visualization
+- Connection health monitoring
 
 ## 🔧 Development
 
 ### Available Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run test` - Run tests
-
-### Project Structure
-
-```
-src/
-├── components/          # Reusable UI components
-│   ├── ui/             # Base UI components (Button, Card, Input, etc.)
-│   └── layout/         # Layout components
-├── pages/              # Page components
-│   ├── DashboardPage.tsx
-│   ├── JobsPage.tsx
-│   └── ...
-├── hooks/              # Custom React hooks
-├── utils/              # Utility functions
-├── types/              # TypeScript type definitions
-├── api/                # API client and services
-└── styles/             # Global styles and Tailwind config
-```
-
-### Key Features Implemented
-
-#### 🏠 Dashboard
-- Network overview and statistics
-- Recent activity feed
-- Quick action buttons
-- Responsive design with Tailwind CSS
-
-#### 📋 Jobs Management
-- Complete job lifecycle management
-- Job submission with validation
-- Real-time status updates
-- Filtering and search capabilities
-- Detailed job information modals
-
-#### 🎨 UI Components
-- **Button**: Multiple variants (primary, secondary, outline, ghost)
-- **Card**: Flexible container with header, content, and footer
-- **Input**: Form inputs with validation states
-- **Modal**: Reusable modal dialogs
-- **Utility Classes**: Tailwind CSS utility functions
-
-#### 🔌 API Integration
-- Type-safe API client using Axios
-- React Query for server state management
-- Error handling and loading states
-- Automatic request/response typing
-
-## 🌐 Environment Configuration
-
-The application uses environment variables for configuration:
-
 ```bash
-# .env.local
-VITE_API_BASE_URL=http://localhost:8080
-VITE_APP_NAME=ICN Web UI
-VITE_APP_VERSION=0.1.0
+# Development
+npm run dev              # Start development server
+npm run build            # Build for production
+npm run preview          # Preview production build
+
+# Testing
+npm run test             # Run unit tests
+./test-api-connection.js # Test API connectivity
+./test-integration.sh    # Test full integration
+
+# Code Quality
+npm run lint             # Run ESLint
+npm run lint:fix         # Fix linting issues
+npm run format           # Format code with Prettier
 ```
+
+### Environment Variables
+
+Create a `.env` file for local development:
+
+```env
+VITE_API_BASE_URL=http://localhost:8080
+VITE_NODE_ENV=development
+```
+
+### API Client Configuration
+
+The API client (`src/services/icnApi.ts`) is configured to:
+- Connect to icn-core on port 8080
+- Handle authentication (Bearer tokens)
+- Provide comprehensive error handling
+- Support real-time data updates
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **Node.js Version Issues**:
-   ```bash
-   # Check your Node.js version
-   node --version
-   
-   # Should be 18.x.x. If not, use the setup script:
-   ./setup-dev.sh
-   ```
+**icn-node not starting**
+```bash
+# Check if port 8080 is available
+netstat -tlnp | grep 8080
 
-2. **Port Already in Use**:
-   ```bash
-   # Kill existing processes on port 3000
-   lsof -ti:3000 | xargs kill -9
-   ```
+# Verify Rust toolchain
+rustc --version
+cargo --version
 
-3. **Dependencies Issues**:
-   ```bash
-   # Clean and reinstall
-   rm -rf node_modules package-lock.json
-   npm install
-   ```
+# Rebuild icn-core
+cd ../icn-core
+cargo clean
+cargo build --release --bin icn-node
+```
 
-4. **Vite Issues**:
-   ```bash
-   # Clear Vite cache
-   rm -rf node_modules/.vite
-   npm run dev
-   ```
+**Web UI not connecting to API**
+```bash
+# Test API connectivity
+./test-api-connection.js
 
-### Development Server Issues
+# Check CORS settings in icn-core
+# Verify icn-node is running on port 8080
+```
 
-If you encounter segmentation faults or crashes:
-1. Ensure you're using Node.js 18 LTS
-2. Run the setup script: `./setup-dev.sh`
-3. Check for conflicting processes
-4. Clear all caches and reinstall dependencies
+**Node.js version issues**
+```bash
+# Switch to Node.js 18 LTS
+source ~/.nvm/nvm.sh
+nvm use lts/hydrogen
+node --version  # Should show v18.x.x
+```
 
-## 📚 API Integration
+### Debug Mode
 
-The UI integrates with the ICN Core API through the `icnApi.ts` client:
+Enable debug logging:
 
-- **Jobs API**: Submit, list, and manage mesh jobs
-- **Economics API**: Mana balance and transaction history
-- **Governance API**: Proposals and voting
-- **Identity API**: DID management and credentials
+```bash
+# Set debug environment variable
+export DEBUG=icn-web-ui:*
 
-All API calls are typed and include proper error handling.
+# Start development server
+npm run dev
+```
 
-## 🎯 Next Steps
+## 📚 Documentation
 
-The application is feature-complete for core functionality. Next development priorities:
-
-1. **Additional Pages**:
-   - Governance/Proposals page
-   - Economics/Mana management
-   - Identity/DID management
-   - Network/Peers page
-
-2. **Enhanced Features**:
-   - Real-time updates via WebSocket
-   - Advanced filtering and search
-   - Export functionality
-   - User preferences and settings
-
-3. **Production Readiness**:
-   - Comprehensive testing
-   - Performance optimization
-   - Security hardening
-   - Deployment configuration
+- **Development Guide**: [DEVELOPMENT.md](./DEVELOPMENT.md)
+- **API Reference**: See icn-core documentation
+- **Architecture**: See ICN documentation repository
 
 ## 🤝 Contributing
 
-1. Ensure you're using Node.js 18 LTS
-2. Follow the existing code style and patterns
-3. Add tests for new features
-4. Update documentation as needed
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+### Code Style
+
+- Use TypeScript for all new code
+- Follow ESLint and Prettier configurations
+- Write meaningful commit messages
+- Add JSDoc comments for public APIs
 
 ## 📄 License
 
-[Add your license information here]
+This project is part of the InterCooperative Network (ICN) and is licensed under the same terms as the ICN project.
+
+## 🔗 Related Projects
+
+- **[icn-core](https://github.com/intercooperative/icn-core)** - Core ICN implementation
+- **[icn-docs](https://github.com/intercooperative/icn-docs)** - Documentation
+- **[icn-website](https://github.com/intercooperative/icn-website)** - Public website
 
 ---
 
-**Ready to develop!** The environment is properly configured and all core features are implemented. Start with `npm run dev` to begin development.
+**Ready to build the future of cooperative computing! 🚀**

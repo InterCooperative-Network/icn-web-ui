@@ -1,108 +1,69 @@
-import { Activity, Zap, Users, Briefcase, TrendingUp, Clock, CheckCircle, XCircle } from 'lucide-react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { icnApi } from '../services/icnApi';
-import { useState } from 'react';
+import { Card } from '@/components/ui/Card';
+import { icnApi } from '@/services/icnApi';
+import type { NodeInfo, NodeStatus, MeshJob } from '@/types/icn';
+import { 
+  Activity, 
+  Users, 
+  Cpu, 
+  Database, 
+  TrendingUp, 
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle
+} from 'lucide-react';
 
-// Mock DID for development - in real app this would come from auth context
-const MOCK_DID = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK';
-
-export function DashboardPage() {
-  const [selectedTimeframe, setSelectedTimeframe] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
-
-  // Fetch account data
-  const { data: account, isLoading: accountLoading } = useQuery({
-    queryKey: ['account', MOCK_DID],
-    queryFn: () => icnApi.getAccount(MOCK_DID),
-    staleTime: 30000, // 30 seconds
+const DashboardPage: React.FC = () => {
+  // Fetch node information
+  const { data: nodeInfo, isLoading: nodeInfoLoading } = useQuery<NodeInfo>({
+    queryKey: ['nodeInfo'],
+    queryFn: () => icnApi.getNodeInfo(),
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  // Fetch network stats
-  const { data: networkStats, isLoading: networkLoading } = useQuery({
-    queryKey: ['network-stats'],
-    queryFn: () => icnApi.getNetworkStats(),
-    staleTime: 60000, // 1 minute
+  // Fetch node status
+  const { data: nodeStatus, isLoading: nodeStatusLoading } = useQuery<NodeStatus>({
+    queryKey: ['nodeStatus'],
+    queryFn: () => icnApi.getNodeStatus(),
+    refetchInterval: 10000, // Refresh every 10 seconds
   });
 
-  // Fetch recent jobs
-  const { data: recentJobs, isLoading: jobsLoading } = useQuery({
-    queryKey: ['recent-jobs'],
-    queryFn: () => icnApi.getJobs(1, 5),
-    staleTime: 30000,
+  // Fetch jobs
+  const { data: jobs = [], isLoading: jobsLoading } = useQuery<MeshJob[]>({
+    queryKey: ['jobs'],
+    queryFn: () => icnApi.getJobs(),
+    refetchInterval: 15000, // Refresh every 15 seconds
   });
 
-  // Fetch recent transactions
-  const { data: transactions, isLoading: transactionsLoading } = useQuery({
-    queryKey: ['transactions', MOCK_DID],
-    queryFn: () => icnApi.getAccountTransactions(MOCK_DID, 1, 10),
-    staleTime: 30000,
+  // Fetch network peers
+  const { data: peers = [], isLoading: peersLoading } = useQuery<string[]>({
+    queryKey: ['peers'],
+    queryFn: () => icnApi.getNetworkPeers(),
+    refetchInterval: 20000, // Refresh every 20 seconds
   });
 
-  const isLoading = accountLoading || networkLoading || jobsLoading || transactionsLoading;
+  // Calculate job statistics
+  const jobStats = React.useMemo(() => {
+    const total = jobs.length;
+    const completed = jobs.filter(job => job.status === 'Completed').length;
+    const running = jobs.filter(job => job.status === 'Running').length;
+    const failed = jobs.filter(job => job.status === 'Failed').length;
+    const pending = jobs.filter(job => job.status === 'Pending' || job.status === 'Bidding').length;
 
-  const formatMana = (mana: number) => {
-    return new Intl.NumberFormat().format(mana);
-  };
+    return { total, completed, running, failed, pending };
+  }, [jobs]);
 
-  const formatTimeAgo = (timestamp: string) => {
-    const now = new Date();
-    const time = new Date(timestamp);
-    const diffMs = now.getTime() - time.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+  // Calculate success rate
+  const successRate = jobStats.total > 0 ? (jobStats.completed / jobStats.total) * 100 : 0;
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return 'text-green-600';
-      case 'Running':
-        return 'text-blue-600';
-      case 'Failed':
-        return 'text-red-600';
-      case 'Pending':
-        return 'text-yellow-600';
-      default:
-        return 'text-gray-600';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Completed':
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'Running':
-        return <Activity className="h-4 w-4 text-blue-600" />;
-      case 'Failed':
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case 'Pending':
-        return <Clock className="h-4 w-4 text-yellow-600" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-600" />;
-    }
-  };
-
-  if (isLoading) {
+  if (nodeInfoLoading || nodeStatusLoading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Loading your ICN federation overview...
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="icn-card p-6 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded dark:bg-gray-700 mb-2"></div>
-              <div className="h-8 bg-gray-200 rounded dark:bg-gray-700"></div>
-            </div>
-          ))}
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -110,234 +71,189 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Overview of your ICN federation and network activity
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600 mt-1">
+            {nodeInfo?.name || 'ICN Node'} - {nodeInfo?.version || 'Unknown Version'}
           </p>
         </div>
-        <div className="flex space-x-2">
-          {(['1h', '24h', '7d', '30d'] as const).map((timeframe) => (
-            <button
-              key={timeframe}
-              onClick={() => setSelectedTimeframe(timeframe)}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                selectedTimeframe === timeframe
-                  ? 'bg-icn-primary text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              {timeframe}
-            </button>
-          ))}
+        <div className="flex items-center space-x-2">
+          <div className={`w-3 h-3 rounded-full ${nodeStatus?.is_online ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <span className="text-sm text-gray-600">
+            {nodeStatus?.is_online ? 'Online' : 'Offline'}
+          </span>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="icn-card p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Zap className="h-8 w-8 text-mana-600" />
-            </div>
-            <div className="ml-5 w-0 flex-1">
-              <dl>
-                <dt className="truncate text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Available Mana
-                </dt>
-                <dd className="text-lg font-medium text-gray-900 dark:text-white">
-                  {account ? formatMana(account.mana_balance) : 'Loading...'}
-                </dd>
-              </dl>
-            </div>
+      {/* Status Message */}
+      {nodeInfo?.status_message && (
+        <Card className="p-4 bg-blue-50 border-blue-200">
+          <div className="flex items-center space-x-2">
+            <Activity className="w-5 h-5 text-blue-600" />
+            <span className="text-blue-800">{nodeInfo.status_message}</span>
           </div>
-          {account && (
-            <div className="mt-2">
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                Regenerating at {account.regeneration_rate.toFixed(2)}/hour
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="icn-card p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Briefcase className="h-8 w-8 text-icn-primary" />
-            </div>
-            <div className="ml-5 w-0 flex-1">
-              <dl>
-                <dt className="truncate text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Active Jobs
-                </dt>
-                <dd className="text-lg font-medium text-gray-900 dark:text-white">
-                  {recentJobs?.data.filter(job => job.status === 'Running' || job.status === 'Pending').length || 0}
-                </dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-
-        <div className="icn-card p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Users className="h-8 w-8 text-green-600" />
-            </div>
-            <div className="ml-5 w-0 flex-1">
-              <dl>
-                <dt className="truncate text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Network Peers
-                </dt>
-                <dd className="text-lg font-medium text-gray-900 dark:text-white">
-                  {networkStats?.active_peers || 0}
-                </dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-
-        <div className="icn-card p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <TrendingUp className="h-8 w-8 text-orange-600" />
-            </div>
-            <div className="ml-5 w-0 flex-1">
-              <dl>
-                <dt className="truncate text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Reputation Score
-                </dt>
-                <dd className="text-lg font-medium text-gray-900 dark:text-white">
-                  {account?.reputation_score.toFixed(1) || '0.0'}
-                </dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity and Jobs */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Recent Jobs */}
-        <div className="icn-card">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
-              Recent Jobs
-            </h3>
-            <div className="space-y-3">
-              {recentJobs?.data.map((job) => (
-                <div key={job.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    {getStatusIcon(job.status)}
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {job.spec.command}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {formatMana(job.actual_cost || job.max_cost)} mana
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`text-sm font-medium ${getStatusColor(job.status)}`}>
-                      {job.status}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatTimeAgo(job.created_at)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {(!recentJobs?.data || recentJobs.data.length === 0) && (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  No recent jobs
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Transactions */}
-        <div className="icn-card">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
-              Recent Transactions
-            </h3>
-            <div className="space-y-3">
-              {transactions?.data.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className={`h-2 w-2 rounded-full ${
-                      tx.amount > 0 ? 'bg-green-400' : 'bg-red-400'
-                    }`}></div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {tx.transaction_type}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {tx.description || 'Transaction'}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`text-sm font-medium ${
-                      tx.amount > 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {tx.amount > 0 ? '+' : ''}{formatMana(tx.amount)} mana
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatTimeAgo(tx.timestamp)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {(!transactions?.data || transactions.data.length === 0) && (
-                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                  No recent transactions
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Network Stats */}
-      {networkStats && (
-        <div className="icn-card">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg font-medium leading-6 text-gray-900 dark:text-white mb-4">
-              Network Statistics
-            </h3>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div>
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Peers</div>
-                <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {networkStats.total_peers}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Jobs Completed</div>
-                <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {networkStats.total_jobs_completed}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Completion</div>
-                <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {Math.round(networkStats.average_job_completion_time_ms / 1000)}s
-                </div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Mana</div>
-                <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {formatMana(networkStats.total_mana_in_circulation)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        </Card>
       )}
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Total Jobs */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Jobs</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {jobsLoading ? '...' : jobStats.total}
+              </p>
+            </div>
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Cpu className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Success Rate */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Success Rate</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {jobsLoading ? '...' : `${successRate.toFixed(1)}%`}
+              </p>
+            </div>
+            <div className="p-2 bg-green-100 rounded-lg">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Active Peers */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Active Peers</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {peersLoading ? '...' : peers.length}
+              </p>
+            </div>
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Users className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Block Height */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Block Height</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {nodeStatusLoading ? '...' : nodeStatus?.current_block_height || 0}
+              </p>
+            </div>
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Database className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Job Status Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Job Status */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Job Status</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <span className="text-gray-700">Completed</span>
+              </div>
+              <span className="font-semibold text-gray-900">{jobStats.completed}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Clock className="w-5 h-5 text-blue-500" />
+                <span className="text-gray-700">Running</span>
+              </div>
+              <span className="font-semibold text-gray-900">{jobStats.running}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-5 h-5 text-yellow-500" />
+                <span className="text-gray-700">Pending</span>
+              </div>
+              <span className="font-semibold text-gray-900">{jobStats.pending}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <XCircle className="w-5 h-5 text-red-500" />
+                <span className="text-gray-700">Failed</span>
+              </div>
+              <span className="font-semibold text-gray-900">{jobStats.failed}</span>
+            </div>
+          </div>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+          <div className="space-y-3">
+            {jobs.slice(0, 5).map((job) => (
+              <div key={job.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    Job {job.id.slice(0, 8)}...
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(job.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    job.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                    job.status === 'Running' ? 'bg-blue-100 text-blue-800' :
+                    job.status === 'Failed' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {job.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {jobs.length === 0 && (
+              <p className="text-gray-500 text-center py-4">No recent jobs</p>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Network Information */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Network Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <p className="text-sm text-gray-600">Node Version</p>
+            <p className="font-medium text-gray-900">{nodeInfo?.version || 'Unknown'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Peer Count</p>
+            <p className="font-medium text-gray-900">
+              {nodeStatusLoading ? '...' : nodeStatus?.peer_count || 0}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Connection Status</p>
+            <p className="font-medium text-gray-900">
+              {nodeStatus?.is_online ? 'Connected' : 'Disconnected'}
+            </p>
+          </div>
+        </div>
+      </Card>
     </div>
   );
-}
+};
+
+export default DashboardPage;

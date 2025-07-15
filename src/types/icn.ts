@@ -5,6 +5,32 @@ export type Did = string;
 export type JobId = string;
 export type ProposalId = string;
 export type BlockId = string;
+export type Cid = string;
+
+// Node Information Types
+export interface NodeInfo {
+  name: string;
+  version: string;
+  status_message: string;
+}
+
+export interface NodeStatus {
+  is_online: boolean;
+  peer_count: number;
+  current_block_height: number;
+  version: string;
+}
+
+// DAG Types
+export interface DagBlock {
+  cid: Cid;
+  data: any;
+  links: Cid[];
+  timestamp: number;
+  author_did: Did;
+  signature?: string;
+  scope?: string;
+}
 
 // Account and Mana Types
 export interface ManaAccount {
