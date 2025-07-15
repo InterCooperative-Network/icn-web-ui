@@ -18,7 +18,8 @@ import {
   AlertCircle,
   Eye,
   RefreshCw,
-  Cpu
+  Cpu,
+  TrendingUp
 } from 'lucide-react';
 
 // Helper functions for job status display
@@ -186,6 +187,60 @@ const JobsPage: React.FC = () => {
         </div>
       </Card>
 
+      {/* Job Statistics Dashboard */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Jobs</p>
+              <p className="text-2xl font-bold">{(jobsState.data || []).length}</p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+              <div className="w-4 h-4 bg-blue-500 rounded"></div>
+            </div>
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Running</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {(jobsState.data || []).filter((job: any) => ['running', 'assigned', 'bidding'].includes(job.status.toLowerCase())).length}
+              </p>
+            </div>
+            <Play className="w-8 h-8 text-blue-500" />
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Completed</p>
+              <p className="text-2xl font-bold text-green-600">
+                {(jobsState.data || []).filter((job: any) => job.status.toLowerCase() === 'completed').length}
+              </p>
+            </div>
+            <CheckCircle className="w-8 h-8 text-green-500" />
+          </div>
+        </Card>
+        
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Success Rate</p>
+              <p className="text-2xl font-bold text-green-600">
+                {(jobsState.data || []).length > 0 
+                  ? Math.round(((jobsState.data || []).filter((job: any) => job.status.toLowerCase() === 'completed').length / (jobsState.data || []).length) * 100)
+                  : 0
+                }%
+              </p>
+            </div>
+            <TrendingUp className="w-8 h-8 text-green-500" />
+          </div>
+        </Card>
+      </div>
+
       {/* Jobs List */}
       <div className="space-y-4">
         {jobsState.isLoading && !jobsState.data ? (
@@ -289,6 +344,8 @@ interface JobSubmitModalProps {
 }
 
 const JobSubmitModal: React.FC<JobSubmitModalProps> = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
+  const [activeTab, setActiveTab] = useState('basic');
+  const [selectedTemplate, setSelectedTemplate] = useState('');
   const [formData, setFormData] = useState({
     command: '',
     args: '',
@@ -299,6 +356,73 @@ const JobSubmitModal: React.FC<JobSubmitModalProps> = ({ isOpen, onClose, onSubm
     max_cost: 100,
     timeout_seconds: 300,
   });
+
+  // Job templates for quick start
+  const jobTemplates = [
+    {
+      id: 'echo',
+      name: 'Echo Test',
+      description: 'Simple echo command for testing',
+      spec: {
+        command: 'echo',
+        args: 'Hello from ICN!',
+        environment: '',
+        cpu_cores: 1,
+        memory_mb: 64,
+        disk_mb: 0,
+        max_cost: 10,
+        timeout_seconds: 30,
+      }
+    },
+    {
+      id: 'python',
+      name: 'Python Script',
+      description: 'Execute Python code',
+      spec: {
+        command: 'python3',
+        args: '-c "print(\'Hello from Python!\')"',
+        environment: '{"PYTHONPATH": "/usr/lib/python3/dist-packages"}',
+        cpu_cores: 1,
+        memory_mb: 256,
+        disk_mb: 100,
+        max_cost: 50,
+        timeout_seconds: 300,
+      }
+    },
+    {
+      id: 'compute',
+      name: 'Heavy Compute',
+      description: 'CPU intensive tasks',
+      spec: {
+        command: 'stress',
+        args: '--cpu 2 --timeout 60s',
+        environment: '',
+        cpu_cores: 2,
+        memory_mb: 512,
+        disk_mb: 0,
+        max_cost: 200,
+        timeout_seconds: 120,
+      }
+    }
+  ];
+
+  const applyTemplate = (templateId: string) => {
+    const template = jobTemplates.find(t => t.id === templateId);
+    if (template) {
+      setSelectedTemplate(templateId);
+      setFormData(template.spec);
+      setActiveTab('basic');
+    }
+  };
+
+  // Cost estimation
+  const estimatedCost = Math.max(
+    10, // base cost
+    formData.cpu_cores * 20 + 
+    Math.ceil(formData.memory_mb / 128) * 15 + 
+    Math.ceil(formData.disk_mb / 100) * 5 + 
+    Math.ceil(formData.timeout_seconds / 60) * 2
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -332,10 +456,85 @@ const JobSubmitModal: React.FC<JobSubmitModalProps> = ({ isOpen, onClose, onSubm
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-semibold mb-4">Submit Mesh Job</h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold">Submit Mesh Job</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            ✕
+          </button>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex border-b mb-6">
+          <button
+            onClick={() => setActiveTab('templates')}
+            className={`px-4 py-2 font-medium ${
+              activeTab === 'templates' 
+                ? 'border-b-2 border-blue-500 text-blue-600' 
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Templates
+          </button>
+          <button
+            onClick={() => setActiveTab('basic')}
+            className={`px-4 py-2 font-medium ${
+              activeTab === 'basic' 
+                ? 'border-b-2 border-blue-500 text-blue-600' 
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Basic Configuration
+          </button>
+          <button
+            onClick={() => setActiveTab('advanced')}
+            className={`px-4 py-2 font-medium ${
+              activeTab === 'advanced' 
+                ? 'border-b-2 border-blue-500 text-blue-600' 
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Advanced Options
+          </button>
+        </div>
+
+        {/* Templates Tab */}
+        {activeTab === 'templates' && (
+          <div className="space-y-4">
+            <p className="text-gray-600">Choose a template to get started quickly:</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {jobTemplates.map((template) => (
+                <div
+                  key={template.id}
+                  onClick={() => applyTemplate(template.id)}
+                  className={`cursor-pointer border rounded-lg p-4 hover:shadow-md transition-shadow ${
+                    selectedTemplate === template.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  }`}
+                >
+                  <h3 className="font-medium text-sm">{template.name}</h3>
+                  <p className="text-xs text-gray-600 mt-1">{template.description}</p>
+                  <div className="mt-2 text-xs space-y-1">
+                    <div>Command: <code className="bg-gray-100 px-1 rounded">{template.spec.command}</code></div>
+                    <div>Cost: ~{template.spec.max_cost} mana</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end">
+              <Button 
+                onClick={() => setActiveTab('basic')}
+                disabled={!selectedTemplate}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Customize Selected Template
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Basic Configuration Tab */}
+        {activeTab === 'basic' && (
+          <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Command
@@ -429,25 +628,168 @@ const JobSubmitModal: React.FC<JobSubmitModalProps> = ({ isOpen, onClose, onSubm
             </div>
           </div>
 
-          <div className="flex space-x-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1"
-            >
-              {isSubmitting ? 'Submitting...' : 'Submit Job'}
-            </Button>
+            {/* Cost Estimation */}
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              <h3 className="text-sm font-medium">Cost Estimation</h3>
+              <div className="text-xs text-gray-600 space-y-1">
+                <div className="flex justify-between">
+                  <span>Base cost:</span>
+                  <span>10 mana</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>CPU ({formData.cpu_cores} cores):</span>
+                  <span>{formData.cpu_cores * 20} mana</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Memory ({formData.memory_mb}MB):</span>
+                  <span>{Math.ceil(formData.memory_mb / 128) * 15} mana</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Storage ({formData.disk_mb}MB):</span>
+                  <span>{Math.ceil(formData.disk_mb / 100) * 5} mana</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Time ({Math.ceil(formData.timeout_seconds / 60)}min):</span>
+                  <span>{Math.ceil(formData.timeout_seconds / 60) * 2} mana</span>
+                </div>
+                <hr className="my-2" />
+                <div className="flex justify-between font-medium">
+                  <span>Estimated Total:</span>
+                  <span className={estimatedCost > formData.max_cost ? 'text-red-600' : 'text-green-600'}>
+                    {estimatedCost} mana
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-3 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1"
+              >
+                {isSubmitting ? 'Submitting...' : 'Submit Job'}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {/* Advanced Options Tab */}
+        {activeTab === 'advanced' && (
+          <div className="space-y-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-yellow-800">Advanced Configuration</h3>
+              <p className="text-xs text-yellow-700 mt-1">
+                These options provide fine-grained control over job execution. Use with caution.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Environment Variables (JSON)
+                </label>
+                <textarea
+                  value={formData.environment}
+                  onChange={(e) => setFormData({ ...formData, environment: e.target.value })}
+                  placeholder='{"PATH": "/usr/bin", "DEBUG": "true"}'
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  JSON object with environment variables to set for the job
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Priority
+                  </label>
+                  <select
+                    value="normal"
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="high">High (Coming Soon)</option>
+                    <option value="urgent">Urgent (Coming Soon)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Retry Policy
+                  </label>
+                  <select
+                    value="none"
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                  >
+                    <option value="none">No Retry</option>
+                    <option value="auto">Auto Retry (Coming Soon)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Job Dependencies
+                </label>
+                <Input
+                  type="text"
+                  placeholder="job_id_1, job_id_2 (Coming Soon)"
+                  disabled
+                  className="bg-gray-50"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Comma-separated list of job IDs that must complete before this job starts
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Output Handling
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input type="checkbox" disabled className="mr-2" />
+                    <span className="text-sm text-gray-600">Store stdout in DAG (Coming Soon)</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input type="checkbox" disabled className="mr-2" />
+                    <span className="text-sm text-gray-600">Notify on completion (Coming Soon)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <Button
+                onClick={() => setActiveTab('basic')}
+                variant="outline"
+                className="mr-3"
+              >
+                Back to Basic
+              </Button>
+              <Button
+                onClick={onClose}
+                variant="outline"
+              >
+                Close
+              </Button>
+            </div>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );
