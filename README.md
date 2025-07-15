@@ -1,15 +1,57 @@
 # ICN Web UI
 
-A modern React-based web interface for the InterCooperative Network (ICN), providing comprehensive management capabilities for federations, cooperatives, and communities.
+> **Status: ✅ INTEGRATION SUCCESSFUL** - ICN Core compilation issues resolved and icn-node binary successfully built and integrated.
 
-## 🚀 Status: Integrated with ICN Core
+A modern React-based web interface for managing and monitoring the InterCooperative Network (ICN). This dashboard provides intuitive access to mesh job management, network monitoring, governance participation, and system administration.
 
-✅ **Environment Fixed**: Successfully migrated to Node.js 18 LTS  
-✅ **Dependencies Installed**: All packages working correctly  
-✅ **Development Server**: Running on http://localhost:3000  
-✅ **ICN Core Integration**: API client updated to match icn-core endpoints  
-✅ **Core Features**: Dashboard, Jobs management, and UI components implemented  
-✅ **Real-time Updates**: Auto-refreshing data from icn-core  
+## 🎉 Recent Success
+
+**✅ Major Integration Milestone Achieved:**
+- Successfully resolved all ICN Core compilation issues
+- Fixed merge conflicts and missing dependencies  
+- Built working `icn-node` binary using gcc linker
+- Verified API endpoints are functional
+- Integration scripts updated and tested
+
+## Quick Start
+
+### Prerequisites
+- Node.js 18 LTS (use `nvm use` to switch automatically)
+- A compiled `icn-node` binary (see Integration section)
+
+### 1. Quick Integration Test
+```bash
+# Test that icn-core integration works
+./test-integration-quick.sh
+```
+
+### 2. Development Environment
+```bash
+# Setup and start both icn-node and web UI
+./dev-setup.sh
+```
+
+### 3. Web UI Only
+```bash
+npm install
+npm run dev
+```
+
+## Integration with ICN Core
+
+### Building ICN Node
+The web UI requires a working `icn-node` binary. Due to linker issues with the default `lld`, use gcc:
+
+```bash
+cd ../icn-core
+CARGO_BUILD_JOBS=1 cargo build --bin icn-node --profile dev --config "target.x86_64-unknown-linux-gnu.linker=\"gcc\""
+```
+
+### Known Issues & Workarounds
+- **Linker crashes**: Use gcc instead of lld (handled by our scripts)
+- **Rust compiler SIGSEGV**: Use single-threaded compilation (`CARGO_BUILD_JOBS=1`)
+- **Memory pressure**: Debug builds are more stable than release builds
+- **Minor runtime logging**: Node may show tracing subscriber warnings (non-critical)
 
 ## 🛠 Technology Stack
 

@@ -67,10 +67,10 @@ fi
 
 # Build the icn-node binary
 print_status "Building icn-node binary..."
-cargo build --release --bin icn-node
+CARGO_BUILD_JOBS=1 cargo build --bin icn-node --profile dev --config "target.x86_64-unknown-linux-gnu.linker=\"gcc\""
 
 # Check if build was successful
-if [ ! -f "target/release/icn-node" ]; then
+if [ ! -f "target/debug/icn-node" ]; then
     print_error "Failed to build icn-node binary"
     exit 1
 fi
@@ -137,7 +137,7 @@ trap cleanup SIGINT SIGTERM
 
 # Start icn-node
 echo -e "${GREEN}Starting icn-node on http://localhost:8080...${NC}"
-../icn-core/target/release/icn-node &
+../icn-core/target/debug/icn-node &
 ICN_PID=$!
 
 # Wait for icn-node to start
