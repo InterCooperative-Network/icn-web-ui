@@ -14,8 +14,7 @@ import {
   XCircle, 
   Clock,
   AlertCircle,
-  Eye,
-  Trash2
+  Eye
 } from 'lucide-react';
 
 const JobsPage: React.FC = () => {
@@ -245,12 +244,14 @@ const SubmitJobModal: React.FC<SubmitJobModalProps> = ({ onSubmit, onClose, isLo
       timeout_seconds: formData.timeout_seconds,
     };
 
+    // For now, create a placeholder manifest CID and encode the job spec
+    // In a real implementation, this would upload the job spec to the DAG first
+    const manifestCid = `bafybe${Math.random().toString(36).substring(2, 15)}example`;
+    
     const request: SubmitJobRequest = {
-      job_spec: jobSpec,
-      max_cost: formData.max_cost,
-      timeout_seconds: formData.timeout_seconds,
-      priority: formData.priority,
-      metadata: {},
+      manifest_cid: manifestCid,
+      spec_json: jobSpec, // Using deprecated JSON format for simplicity
+      cost_mana: formData.max_cost,
     };
 
     onSubmit(request);

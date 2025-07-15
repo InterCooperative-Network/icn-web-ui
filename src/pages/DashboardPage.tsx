@@ -11,8 +11,7 @@ import {
   TrendingUp, 
   Clock,
   CheckCircle,
-  XCircle,
-  AlertCircle
+  XCircle
 } from 'lucide-react';
 
 const DashboardPage: React.FC = () => {
@@ -28,6 +27,13 @@ const DashboardPage: React.FC = () => {
     queryKey: ['nodeStatus'],
     queryFn: () => icnApi.getNodeStatus(),
     refetchInterval: 10000, // Refresh every 10 seconds
+  });
+
+  // Fetch current account info (mana balance)
+  const { data: accountInfo, isLoading: accountInfoLoading } = useQuery({
+    queryKey: ['accountInfo'],
+    queryFn: () => icnApi.getCurrentAccountInfo(),
+    refetchInterval: 15000, // Refresh every 15 seconds
   });
 
   // Fetch jobs
@@ -47,10 +53,18 @@ const DashboardPage: React.FC = () => {
   // Calculate job statistics
   const jobStats = React.useMemo(() => {
     const total = jobs.length;
-    const completed = jobs.filter(job => job.status === 'Completed').length;
-    const running = jobs.filter(job => job.status === 'Running').length;
-    const failed = jobs.filter(job => job.status === 'Failed').length;
-    const pending = jobs.filter(job => job.status === 'Pending' || job.status === 'Bidding').length;
+    const completed = jobs.filter(job => 
+      job.status.toLowerCase() === 'completed'
+    ).length;
+    const running = jobs.filter(job => 
+      job.status.toLowerCase() === 'running'
+    ).length;
+    const failed = jobs.filter(job => 
+      job.status.toLowerCase() === 'failed'
+    ).length;
+    const pending = jobs.filter(job => 
+      job.status.toLowerCase() === 'pending' || job.status.toLowerCase() === 'bidding'
+    ).length;
 
     return { total, completed, running, failed, pending };
   }, [jobs]);
@@ -99,6 +113,36 @@ const DashboardPage: React.FC = () => {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Mana Balance */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Mana Balance</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {accountInfoLoading ? '...' : accountInfo?.mana || 0}
+              </p>
+            </div>
+            <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Database className="h-6 w-6 text-purple-600" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Network Peers */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Network Peers</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {peersLoading ? '...' : peers.length}
+              </p>
+            </div>
+            <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Users className="h-6 w-6 text-blue-600" />
+            </div>
+          </div>
+        </Card>
+
         {/* Total Jobs */}
         <Card className="p-6">
           <div className="flex items-center justify-between">
@@ -108,8 +152,8 @@ const DashboardPage: React.FC = () => {
                 {jobsLoading ? '...' : jobStats.total}
               </p>
             </div>
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Cpu className="w-6 h-6 text-blue-600" />
+            <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <Cpu className="h-6 w-6 text-green-600" />
             </div>
           </div>
         </Card>
@@ -123,135 +167,85 @@ const DashboardPage: React.FC = () => {
                 {jobsLoading ? '...' : `${successRate.toFixed(1)}%`}
               </p>
             </div>
-            <div className="p-2 bg-green-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Active Peers */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Active Peers</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {peersLoading ? '...' : peers.length}
-              </p>
-            </div>
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Users className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-        </Card>
-
-        {/* Block Height */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Block Height</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {nodeStatusLoading ? '...' : nodeStatus?.current_block_height || 0}
-              </p>
-            </div>
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <Database className="w-6 h-6 text-orange-600" />
+            <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-green-600" />
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Job Status Breakdown */}
+      {/* Job Status Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Job Status */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Job Status</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Job Status Overview</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <CheckCircle className="w-5 h-5 text-green-500" />
-                <span className="text-gray-700">Completed</span>
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-gray-600">Completed</span>
               </div>
-              <span className="font-semibold text-gray-900">{jobStats.completed}</span>
+              <span className="text-sm font-medium">{jobStats.completed}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Clock className="w-5 h-5 text-blue-500" />
-                <span className="text-gray-700">Running</span>
+                <Activity className="w-4 h-4 text-blue-500" />
+                <span className="text-sm text-gray-600">Running</span>
               </div>
-              <span className="font-semibold text-gray-900">{jobStats.running}</span>
+              <span className="text-sm font-medium">{jobStats.running}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <AlertCircle className="w-5 h-5 text-yellow-500" />
-                <span className="text-gray-700">Pending</span>
+                <Clock className="w-4 h-4 text-yellow-500" />
+                <span className="text-sm text-gray-600">Pending</span>
               </div>
-              <span className="font-semibold text-gray-900">{jobStats.pending}</span>
+              <span className="text-sm font-medium">{jobStats.pending}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <XCircle className="w-5 h-5 text-red-500" />
-                <span className="text-gray-700">Failed</span>
+                <XCircle className="w-4 h-4 text-red-500" />
+                <span className="text-sm text-gray-600">Failed</span>
               </div>
-              <span className="font-semibold text-gray-900">{jobStats.failed}</span>
+              <span className="text-sm font-medium">{jobStats.failed}</span>
             </div>
           </div>
         </Card>
 
         {/* Recent Activity */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Jobs</h3>
           <div className="space-y-3">
-            {jobs.slice(0, 5).map((job) => (
-              <div key={job.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    Job {job.id.slice(0, 8)}...
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(job.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    job.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                    job.status === 'Running' ? 'bg-blue-100 text-blue-800' :
-                    job.status === 'Failed' ? 'bg-red-100 text-red-800' :
+            {jobsLoading ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-300 mx-auto"></div>
+              </div>
+            ) : jobs.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">No jobs yet</p>
+            ) : (
+              jobs.slice(0, 5).map((job) => (
+                <div key={job.id} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    {job.status.toLowerCase() === 'completed' && <CheckCircle className="w-4 h-4 text-green-500" />}
+                    {job.status.toLowerCase() === 'running' && <Activity className="w-4 h-4 text-blue-500" />}
+                    {(job.status.toLowerCase() === 'pending' || job.status.toLowerCase() === 'bidding') && <Clock className="w-4 h-4 text-yellow-500" />}
+                    {job.status.toLowerCase() === 'failed' && <XCircle className="w-4 h-4 text-red-500" />}
+                    <span className="text-sm text-gray-900 font-mono">
+                      {job.id.substring(0, 8)}...
+                    </span>
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    job.status.toLowerCase() === 'completed' ? 'bg-green-100 text-green-800' :
+                    job.status.toLowerCase() === 'running' ? 'bg-blue-100 text-blue-800' :
+                    job.status.toLowerCase() === 'failed' ? 'bg-red-100 text-red-800' :
                     'bg-yellow-100 text-yellow-800'
                   }`}>
-                    {job.status}
+                    {job.status.charAt(0).toUpperCase() + job.status.slice(1).toLowerCase()}
                   </span>
                 </div>
-              </div>
-            ))}
-            {jobs.length === 0 && (
-              <p className="text-gray-500 text-center py-4">No recent jobs</p>
+              ))
             )}
           </div>
         </Card>
       </div>
-
-      {/* Network Information */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Network Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <p className="text-sm text-gray-600">Node Version</p>
-            <p className="font-medium text-gray-900">{nodeInfo?.version || 'Unknown'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Peer Count</p>
-            <p className="font-medium text-gray-900">
-              {nodeStatusLoading ? '...' : nodeStatus?.peer_count || 0}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Connection Status</p>
-            <p className="font-medium text-gray-900">
-              {nodeStatus?.is_online ? 'Connected' : 'Disconnected'}
-            </p>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 };

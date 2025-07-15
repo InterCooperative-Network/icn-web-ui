@@ -1,17 +1,8 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import type {
-  ManaAccount,
-  ManaTransaction,
   MeshJob,
-  JobBid,
-  Proposal,
-  Vote,
-  NetworkPeer,
-  NetworkStats,
   SubmitJobRequest,
   SubmitJobResponse,
-  ApiResponse,
-  PaginatedResponse,
   ApiError,
   Did,
   JobId,
@@ -20,6 +11,8 @@ import type {
   NodeStatus,
   DagBlock,
   Cid,
+  JobStatus,
+  Proposal,
 } from '@/types/icn';
 
 export class ICNApiError extends Error {
@@ -69,8 +62,16 @@ export class ICNApiClient {
     this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }
 
+  setApiKey(apiKey: string) {
+    this.client.defaults.headers.common['x-api-key'] = apiKey;
+  }
+
   clearAuthToken() {
     delete this.client.defaults.headers.common['Authorization'];
+  }
+
+  clearApiKey() {
+    delete this.client.defaults.headers.common['x-api-key'];
   }
 
   // Node Information
@@ -89,42 +90,139 @@ export class ICNApiClient {
     return response.data;
   }
 
-  // Account Management (Mana)
-  async getAccountMana(did: Did): Promise<ManaAccount> {
-    const response = await this.client.get<ManaAccount>(`/account/${did}/mana`);
+  // Mana/Account Management - Updated to use existing endpoints
+  async getCurrentAccountInfo(): Promise<{ did: string; mana: number }> {
+    // Get account info from node info endpoint since /account/{did}/mana doesn't exist
+    const nodeInfo = await this.getNodeInfo();
+    // Parse mana from status_message which contains "Node DID: {did}, Mana: {balance}"
+    const match = nodeInfo.status_message.match(/Node DID: (.+?), Mana: (\d+)/);
+    if (match) {
+      return {
+        did: match[1],
+        mana: parseInt(match[2], 10)
+      };
+    }
+    return { did: 'unknown', mana: 0 };
+  }
+
+  // Reputation - This endpoint exists in icn-core
+  async getReputation(did: Did): Promise<{ score: number; frozen?: boolean }> {
+    const response = await this.client.get<{ score: number; frozen?: boolean }>(`/reputation/${did}`);
     return response.data;
   }
 
-  async getReputation(did: Did): Promise<{ reputation: number }> {
-    const response = await this.client.get<{ reputation: number }>(`/reputation/${did}`);
-    return response.data;
-  }
-
-  // Job Management (Mesh)
+  // Job Management (Mesh) - Fixed to match actual API response format
   async submitJob(request: SubmitJobRequest): Promise<SubmitJobResponse> {
     const response = await this.client.post<SubmitJobResponse>('/mesh/submit', request);
     return response.data;
   }
 
   async getJobs(): Promise<MeshJob[]> {
-    const response = await this.client.get<MeshJob[]>('/mesh/jobs');
-    return response.data;
+    // API returns { "jobs": [...] } not direct array
+    const response = await this.client.get<{ jobs: any[] }>('/mesh/jobs');
+    
+    // Transform the response to match our MeshJob interface
+    return response.data.jobs.map(job => ({
+      id: job.job_id,
+      submitter: 'unknown', // Not provided in current API
+      executor: job.status?.executor || undefined,
+      status: this.normalizeJobStatus(job.status),
+      spec: {
+        command: 'unknown', // Not provided in current API
+        args: [],
+        environment: {},
+        resources: {
+          cpu_cores: 1,
+          memory_mb: 128,
+          disk_mb: 0
+        }
+      },
+      max_cost: 0, // Not provided in current API
+      created_at: new Date().toISOString(), // Not provided in current API
+      updated_at: new Date().toISOString(), // Not provided in current API
+      result: job.status?.status === 'completed' ? {
+        success: true,
+        execution_time_ms: job.status.cpu_ms || 0,
+        resources_used: {
+          cpu_time_ms: job.status.cpu_ms || 0,
+          memory_peak_mb: 0,
+          disk_used_mb: 0,
+          network_bytes: 0
+        }
+      } : undefined,
+      error: job.status?.reason || undefined
+    }));
   }
 
   async getJob(jobId: JobId): Promise<MeshJob> {
-    const response = await this.client.get<MeshJob>(`/mesh/jobs/${jobId}`);
-    return response.data;
+    const response = await this.client.get<any>(`/mesh/jobs/${jobId}`);
+    const job = response.data;
+    
+    // Transform the response to match our MeshJob interface
+    return {
+      id: job.job_id,
+      submitter: 'unknown',
+      executor: job.status?.executor || undefined,
+      status: this.normalizeJobStatus(job.status),
+      spec: {
+        command: 'unknown',
+        args: [],
+        environment: {},
+        resources: {
+          cpu_cores: 1,
+          memory_mb: 128,
+          disk_mb: 0
+        }
+      },
+      max_cost: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      result: job.status?.status === 'completed' ? {
+        success: true,
+        execution_time_ms: job.status.cpu_ms || 0,
+        resources_used: {
+          cpu_time_ms: job.status.cpu_ms || 0,
+          memory_peak_mb: 0,
+          disk_used_mb: 0,
+          network_bytes: 0
+        }
+      } : undefined,
+      error: job.status?.reason || undefined
+    };
   }
 
-  // Governance
+  private normalizeJobStatus(status: any): JobStatus {
+    if (typeof status === 'string') {
+      const normalized = status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+      switch (normalized) {
+        case 'Pending':
+        case 'Bidding':
+        case 'Assigned':
+        case 'Running':
+        case 'Completed':
+        case 'Failed':
+        case 'Cancelled':
+          return normalized as JobStatus;
+        default:
+          return 'Unknown';
+      }
+    }
+    if (typeof status === 'object' && status?.status) {
+      return this.normalizeJobStatus(status.status);
+    }
+    return 'Unknown';
+  }
+
+  // Governance - These endpoints exist and work
   async submitProposal(proposal: {
     proposer_did: string;
     proposal: any;
     description: string;
     duration_secs: number;
   }): Promise<{ proposal_id: string }> {
-    const response = await this.client.post<{ proposal_id: string }>('/governance/submit', proposal);
-    return response.data;
+    const response = await this.client.post<string>('/governance/submit', proposal);
+    // API returns raw string, wrap it
+    return { proposal_id: response.data };
   }
 
   async getProposals(): Promise<Proposal[]> {
@@ -137,7 +235,7 @@ export class ICNApiClient {
     return response.data;
   }
 
-  async vote(proposalId: ProposalId, voteRequest: {
+  async vote(voteRequest: {
     voter_did: string;
     proposal_id: string;
     vote_option: string;
@@ -177,20 +275,14 @@ export class ICNApiClient {
     return response.data;
   }
 
-  // Identity
-  async getKeys(): Promise<{ did: string; public_key_bs58: string }> {
-    const response = await this.client.get<{ did: string; public_key_bs58: string }>('/keys');
-    return response.data;
-  }
-
   // Federation
   async getFederationPeers(): Promise<string[]> {
     const response = await this.client.get<string[]>('/federation/peers');
     return response.data;
   }
 
-  async getFederationStatus(): Promise<{ status: string }> {
-    const response = await this.client.get<{ status: string }>('/federation/status');
+  async getFederationStatus(): Promise<{ peer_count: number; peers: string[] }> {
+    const response = await this.client.get<{ peer_count: number; peers: string[] }>('/federation/status');
     return response.data;
   }
 

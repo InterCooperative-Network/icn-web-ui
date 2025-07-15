@@ -25,9 +25,9 @@ export interface NodeStatus {
 export interface DagBlock {
   cid: Cid;
   data: any;
-  links: Cid[];
-  timestamp: number;
-  author_did: Did;
+  links?: Cid[];
+  timestamp?: number;
+  author_did?: Did;
   signature?: string;
   scope?: string;
 }
@@ -54,7 +54,7 @@ export interface ManaTransaction {
   description?: string;
 }
 
-// Job Types
+// Job Types - Updated to match actual API responses
 export interface MeshJob {
   id: JobId;
   submitter: Did;
@@ -70,14 +70,16 @@ export interface MeshJob {
   error?: string;
 }
 
+// Updated to match actual API status values
 export type JobStatus =
-  | 'Pending'
-  | 'Bidding'
-  | 'Assigned'
-  | 'Running'
-  | 'Completed'
-  | 'Failed'
-  | 'Cancelled';
+  | 'Pending' | 'pending'
+  | 'Bidding' | 'bidding'
+  | 'Assigned' | 'assigned'
+  | 'Running' | 'running'
+  | 'Completed' | 'completed'
+  | 'Failed' | 'failed'
+  | 'Cancelled' | 'cancelled'
+  | 'Unknown';
 
 export interface JobSpecification {
   command: string;
@@ -195,21 +197,18 @@ export interface NetworkStats {
   average_job_completion_time_ms: number;
 }
 
-// API Request/Response Types
+// API Request/Response Types - Updated to match actual icn-core API
 export interface SubmitJobRequest {
-  job_spec: JobSpecification;
-  max_cost: number;
-  timeout_seconds?: number;
-  priority: JobPriority;
-  metadata: Record<string, string>;
+  manifest_cid: string;
+  spec_bytes?: string; // Base64 encoded bincode JobSpec bytes
+  spec_json?: any; // Deprecated JSON representation
+  cost_mana: number;
 }
 
 export type JobPriority = 'Low' | 'Normal' | 'High' | 'Critical';
 
 export interface SubmitJobResponse {
   job_id: JobId;
-  estimated_cost: number;
-  estimated_completion_time: string; // ISO date string
 }
 
 export interface ApiError {

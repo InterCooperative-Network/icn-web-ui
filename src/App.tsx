@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { MainLayout } from './layouts/MainLayout';
-import { DashboardPage } from './pages/DashboardPage';
-import { JobsPage } from './pages/JobsPage';
+import DashboardPage from './pages/DashboardPage';
+import JobsPage from './pages/JobsPage';
 import { GovernancePage } from './pages/GovernancePage';
 import { AccountPage } from './pages/AccountPage';
 import { NetworkPage } from './pages/NetworkPage';
