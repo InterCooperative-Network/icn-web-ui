@@ -330,6 +330,8 @@ const DashboardPage: React.FC = () => {
                     <p className="text-xs text-gray-700 dark:text-gray-300 font-medium">
                       {job.command || 'No command specified'}
                     </p>
+                    Made labels use font-bold instead of just font-medium
+                    Improved secondary text from tex
                   </div>
                   <div className="ml-4 flex-shrink-0">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
