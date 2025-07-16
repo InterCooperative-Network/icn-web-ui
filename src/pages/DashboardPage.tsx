@@ -55,7 +55,7 @@ const DashboardPage: React.FC = () => {
   const isConnected = nodeStatus.isConnected && accountInfo.isConnected && jobs.isConnected && peers.isConnected;
   const hasErrors = nodeStatus.error || accountInfo.error || jobs.error || peers.error;
 
-  if (nodeStatus.isLoading && !nodeStatus.data) {
+  if (nodeStatus.isLoading && !nodeStatus.data && !nodeStatus.error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

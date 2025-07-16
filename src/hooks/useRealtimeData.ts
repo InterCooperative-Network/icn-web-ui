@@ -216,7 +216,14 @@ export function useRealtimeJobs() {
 export function useRealtimeAccountInfo() {
   return useRealtimeData(
     'account',
-    () => icnApi.getCurrentAccountInfo(),
+    async () => {
+      try {
+        return await icnApi.getCurrentAccountInfo();
+      } catch (error) {
+        console.warn('Account info unavailable, using fallback');
+        return { did: 'unknown', mana: 0 };
+      }
+    },
     { pollingInterval: 10000 } // Update every 10 seconds
   );
 }
@@ -224,7 +231,14 @@ export function useRealtimeAccountInfo() {
 export function useRealtimePeers() {
   return useRealtimeData(
     'peers',
-    () => icnApi.getNetworkPeers(),
+    async () => {
+      try {
+        return await icnApi.getNetworkPeers();
+      } catch (error) {
+        console.warn('Network peers unavailable (libp2p stub), using fallback');
+        return []; // Return empty array as fallback
+      }
+    },
     { pollingInterval: 15000 } // Update every 15 seconds
   );
 } 

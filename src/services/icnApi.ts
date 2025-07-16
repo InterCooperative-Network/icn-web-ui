@@ -569,7 +569,8 @@ export class ICNWebSocketClient {
 
 // Create enhanced singleton instance
 export const icnApi = new ICNApiClient({
-  baseUrl: 'http://localhost:7845'
+  baseUrl: 'http://localhost:7845',
+  apiKey: 'dev-api-key'
 });
 
 // Export the class for testing or custom instances
