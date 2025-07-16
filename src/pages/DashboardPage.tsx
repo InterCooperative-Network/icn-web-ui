@@ -78,7 +78,7 @@ const DashboardPage: React.FC = () => {
   const [hasWaited, setHasWaited] = React.useState(false);
   
   React.useEffect(() => {
-    const timer = setTimeout(() => setHasWaited(true), 3000); // Wait max 3 seconds
+    const timer = setTimeout(() => setHasWaited(true), 3000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -87,7 +87,7 @@ const DashboardPage: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+          <p className="mt-4 text-gray-700 dark:text-gray-300 font-medium">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -98,8 +98,8 @@ const DashboardPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <p className="text-gray-700 dark:text-gray-300 mt-1 font-medium">
             ICN Node - {nodeStatus.data?.version || 'Unknown Version'}
           </p>
         </div>
@@ -113,7 +113,7 @@ const DashboardPage: React.FC = () => {
             ) : (
               <WifiOff className="w-4 h-4 text-red-500" />
             )}
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
               {isConnected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
@@ -126,7 +126,7 @@ const DashboardPage: React.FC = () => {
               jobs.refetch();
               peers.refetch();
             }}
-            className="flex items-center space-x-2 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+            className="flex items-center space-x-2 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md transition-colors text-gray-800 dark:text-gray-200 font-medium"
             disabled={nodeStatus.isLoading}
           >
             <RefreshCw className={`w-4 h-4 ${nodeStatus.isLoading ? 'animate-spin' : ''}`} />
@@ -144,7 +144,7 @@ const DashboardPage: React.FC = () => {
                 console.log('🔬 Debug: API test failed - check console for details');
               }
             }}
-            className="flex items-center space-x-2 px-3 py-1 text-sm bg-red-100 hover:bg-red-200 rounded-md transition-colors"
+            className="flex items-center space-x-2 px-3 py-1 text-sm bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 rounded-md transition-colors text-red-800 dark:text-red-200 font-medium"
           >
             <span>🔬 Debug API</span>
           </button>
@@ -152,7 +152,7 @@ const DashboardPage: React.FC = () => {
           {/* Node Status Dot */}
           <div className="flex items-center space-x-2">
             <div className={`w-3 h-3 rounded-full ${nodeStatus.data?.is_online ? 'bg-green-500' : 'bg-red-500'}`}></div>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
               {nodeStatus.data?.is_online ? 'Online' : 'Offline'}
             </span>
           </div>
@@ -161,12 +161,12 @@ const DashboardPage: React.FC = () => {
 
       {/* Error Alerts */}
       {hasErrors && (
-        <Card className="p-4 bg-red-50 border-red-200">
+        <Card className="p-4 bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-700">
           <div className="flex items-center space-x-2">
-            <XCircle className="w-5 h-5 text-red-600" />
+            <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
             <div>
-              <span className="text-red-800 font-medium">Connection Issues Detected</span>
-              <div className="text-sm text-red-600 mt-1">
+              <span className="text-red-800 dark:text-red-300 font-bold">Connection Issues Detected</span>
+              <div className="text-sm text-red-700 dark:text-red-400 mt-1 font-medium">
                 {nodeStatus.error && <div>• Node Status: {nodeStatus.error}</div>}
                 {accountInfo.error && <div>• Account Info: {accountInfo.error}</div>}
                 {jobs.error && <div>• Jobs: {jobs.error}</div>}
@@ -179,8 +179,8 @@ const DashboardPage: React.FC = () => {
 
       {/* Last Update Info */}
       {(nodeStatus.lastUpdate || jobs.lastUpdate) && (
-        <Card className="p-3 bg-gray-50 border-gray-200">
-          <div className="flex items-center justify-between text-xs text-gray-500">
+        <Card className="p-3 bg-gray-50 border-gray-200 dark:bg-gray-800 dark:border-gray-600">
+          <div className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300 font-medium">
             <span>
               Last update: {new Date(Math.max(
                 nodeStatus.lastUpdate?.getTime() || 0,
@@ -203,17 +203,17 @@ const DashboardPage: React.FC = () => {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Mana Balance</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-bold text-gray-800 dark:text-gray-200">Mana Balance</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {accountInfo.isLoading ? (
-                  <div className="animate-pulse bg-gray-200 h-8 w-16 rounded"></div>
+                  <div className="animate-pulse bg-gray-200 dark:bg-gray-600 h-8 w-16 rounded"></div>
                 ) : (
                   accountInfo.data?.mana || 0
                 )}
               </p>
             </div>
-            <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Database className="h-6 w-6 text-purple-600" />
+            <div className="h-12 w-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+              <Database className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
         </Card>
@@ -222,17 +222,17 @@ const DashboardPage: React.FC = () => {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Network Peers</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-bold text-gray-800 dark:text-gray-200">Network Peers</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {peers.isLoading ? (
-                  <div className="animate-pulse bg-gray-200 h-8 w-8 rounded"></div>
+                  <div className="animate-pulse bg-gray-200 dark:bg-gray-600 h-8 w-8 rounded"></div>
                 ) : (
                   peers.data?.length || 0
                 )}
               </p>
             </div>
-            <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Users className="h-6 w-6 text-blue-600" />
+            <div className="h-12 w-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+              <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </Card>
@@ -241,17 +241,17 @@ const DashboardPage: React.FC = () => {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Jobs</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-bold text-gray-800 dark:text-gray-200">Total Jobs</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {jobs.isLoading ? (
-                  <div className="animate-pulse bg-gray-200 h-8 w-8 rounded"></div>
+                  <div className="animate-pulse bg-gray-200 dark:bg-gray-600 h-8 w-8 rounded"></div>
                 ) : (
                   jobStats.total
                 )}
               </p>
             </div>
-            <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <Cpu className="h-6 w-6 text-green-600" />
+            <div className="h-12 w-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+              <Cpu className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
           </div>
         </Card>
@@ -260,17 +260,17 @@ const DashboardPage: React.FC = () => {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Success Rate</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-bold text-gray-800 dark:text-gray-200">Success Rate</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {jobs.isLoading ? (
-                  <div className="animate-pulse bg-gray-200 h-8 w-12 rounded"></div>
+                  <div className="animate-pulse bg-gray-200 dark:bg-gray-600 h-8 w-12 rounded"></div>
                 ) : (
                   `${successRate.toFixed(1)}%`
                 )}
               </p>
             </div>
-            <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-green-600" />
+            <div className="h-12 w-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+              <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
           </div>
         </Card>
@@ -279,71 +279,77 @@ const DashboardPage: React.FC = () => {
       {/* Job Status Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Job Status Overview</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Job Status Overview</h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                <span className="text-sm text-gray-600">Completed</span>
+                <span className="text-sm text-gray-800 dark:text-gray-200 font-medium">Completed</span>
               </div>
-              <span className="text-sm font-medium">{jobStats.completed}</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-white">{jobStats.completed}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Activity className="w-4 h-4 text-blue-500" />
-                <span className="text-sm text-gray-600">Running</span>
+                <span className="text-sm text-gray-800 dark:text-gray-200 font-medium">Running</span>
               </div>
-              <span className="text-sm font-medium">{jobStats.running}</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-white">{jobStats.running}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Clock className="w-4 h-4 text-yellow-500" />
-                <span className="text-sm text-gray-600">Pending</span>
+                <span className="text-sm text-gray-800 dark:text-gray-200 font-medium">Pending</span>
               </div>
-              <span className="text-sm font-medium">{jobStats.pending}</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-white">{jobStats.pending}</span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <XCircle className="w-4 h-4 text-red-500" />
-                <span className="text-sm text-gray-600">Failed</span>
+                <span className="text-sm text-gray-800 dark:text-gray-200 font-medium">Failed</span>
               </div>
-              <span className="text-sm font-medium">{jobStats.failed}</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-white">{jobStats.failed}</span>
             </div>
           </div>
         </Card>
 
         {/* Recent Jobs */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Jobs</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Jobs</h3>
           <div className="space-y-3">
             {jobs.isLoading ? (
               <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-300 mx-auto"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400 dark:border-gray-300 mx-auto"></div>
               </div>
-            ) : !jobs.data || jobs.data.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">No jobs yet</p>
-            ) : (
-              jobs.data.slice(0, 5).map((job) => (
-                <div key={job.id} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    {job.status.toLowerCase() === 'completed' && <CheckCircle className="w-4 h-4 text-green-500" />}
-                    {job.status.toLowerCase() === 'running' && <Activity className="w-4 h-4 text-blue-500" />}
-                    {(job.status.toLowerCase() === 'pending' || job.status.toLowerCase() === 'bidding') && <Clock className="w-4 h-4 text-yellow-500" />}
-                    {job.status.toLowerCase() === 'failed' && <XCircle className="w-4 h-4 text-red-500" />}
-                    <span className="text-sm text-gray-900 font-mono">
-                      {job.id.substring(0, 8)}...
+            ) : jobs.data && jobs.data.length > 0 ? (
+              jobs.data.slice(0, 5).map((job: any) => (
+                <div key={job.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                      Job {job.id?.slice(0, 8) || 'Unknown'}
+                    </p>
+                    <p className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                      {job.command || 'No command specified'}
+                    </p>
+                  </div>
+                  <div className="ml-4 flex-shrink-0">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold
+                      ${job.status.toLowerCase() === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        job.status.toLowerCase() === 'running' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                        job.status.toLowerCase() === 'failed' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'}`}>
+                      {job.status}
                     </span>
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    job.status.toLowerCase() === 'completed' ? 'bg-green-100 text-green-800' :
-                    job.status.toLowerCase() === 'running' ? 'bg-blue-100 text-blue-800' :
-                    job.status.toLowerCase() === 'failed' ? 'bg-red-100 text-red-800' :
-                    'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {job.status.charAt(0).toUpperCase() + job.status.slice(1).toLowerCase()}
-                  </span>
                 </div>
               ))
+            ) : (
+              <div className="text-center py-8">
+                <Cpu className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+                <h3 className="mt-2 text-sm font-bold text-gray-800 dark:text-gray-300">No jobs yet</h3>
+                <p className="mt-1 text-sm text-gray-700 dark:text-gray-400">
+                  Submit your first mesh job to get started.
+                </p>
+              </div>
             )}
           </div>
         </Card>
