@@ -6,6 +6,7 @@ import {
   useRealtimeAccountInfo, 
   useRealtimePeers 
 } from '@/hooks/useRealtimeData';
+import { testApiConnection } from '@/services/icnApi';
 import { 
   Activity, 
   Users, 
@@ -104,6 +105,22 @@ const DashboardPage: React.FC = () => {
           >
             <RefreshCw className={`w-4 h-4 ${nodeStatus.isLoading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
+          </button>
+
+          {/* Debug API Button */}
+          <button
+            onClick={async () => {
+              console.log('🔬 Debug: Testing API connection...');
+              try {
+                await testApiConnection();
+                console.log('🔬 Debug: API test completed - check console for details');
+              } catch (error) {
+                console.log('🔬 Debug: API test failed - check console for details');
+              }
+            }}
+            className="flex items-center space-x-2 px-3 py-1 text-sm bg-red-100 hover:bg-red-200 rounded-md transition-colors"
+          >
+            <span>🔬 Debug API</span>
           </button>
 
           {/* Node Status Dot */}

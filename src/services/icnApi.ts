@@ -569,9 +569,26 @@ export class ICNWebSocketClient {
 
 // Create enhanced singleton instance
 export const icnApi = new ICNApiClient({
-  baseUrl: 'http://localhost:7845',
+  baseUrl: 'http://localhost:7846',
   apiKey: 'dev-api-key'
 });
+
+// Debug function to test API connection
+export const testApiConnection = async () => {
+  try {
+    console.log('🔍 Testing API connection...');
+    const response = await icnApi.getNodeInfo();
+    console.log('✅ API test successful:', response);
+    return response;
+  } catch (error: any) {
+    console.error('❌ API test failed:', error);
+    if (error?.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+    }
+    throw error;
+  }
+};
 
 // Export the class for testing or custom instances
 export default ICNApiClient;

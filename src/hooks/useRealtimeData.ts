@@ -201,7 +201,7 @@ export function useRealtimeNodeStatus() {
   return useRealtimeData(
     'status',
     () => icnApi.getNodeStatus(),
-    { pollingInterval: 5000 } // Update every 5 seconds
+    { pollingInterval: 30000 } // Update every 30 seconds (reduced from 5)
   );
 }
 
@@ -209,7 +209,7 @@ export function useRealtimeJobs() {
   return useRealtimeData(
     'jobs',
     () => icnApi.getJobs(),
-    { pollingInterval: 3000 } // Update every 3 seconds for jobs
+    { pollingInterval: 15000 } // Update every 15 seconds (reduced from 3)
   );
 }
 
@@ -224,7 +224,7 @@ export function useRealtimeAccountInfo() {
         return { did: 'unknown', mana: 0 };
       }
     },
-    { pollingInterval: 10000 } // Update every 10 seconds
+    { pollingInterval: 60000 } // Update every 60 seconds (reduced from 10)
   );
 }
 
@@ -239,6 +239,6 @@ export function useRealtimePeers() {
         return []; // Return empty array as fallback
       }
     },
-    { pollingInterval: 15000 } // Update every 15 seconds
+    { pollingInterval: 45000 } // Update every 45 seconds (reduced from 15)
   );
 } 
