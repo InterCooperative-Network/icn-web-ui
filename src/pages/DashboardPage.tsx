@@ -28,6 +28,24 @@ const DashboardPage: React.FC = () => {
   const jobs = useRealtimeJobs();
   const peers = useRealtimePeers();
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔬 Dashboard hook states:', {
+      nodeStatus: { isLoading: nodeStatus.isLoading, data: !!nodeStatus.data, error: nodeStatus.error },
+      accountInfo: { isLoading: accountInfo.isLoading, data: !!accountInfo.data, error: accountInfo.error },
+      jobs: { isLoading: jobs.isLoading, data: !!jobs.data, error: jobs.error },
+      peers: { isLoading: peers.isLoading, data: !!peers.data, error: peers.error }
+    });
+  }, [nodeStatus.isLoading, accountInfo.isLoading, jobs.isLoading, peers.isLoading]);
+
+  // Test API client directly on mount
+  React.useEffect(() => {
+    console.log('🔬 Testing API client directly...');
+    testApiConnection().catch(error => {
+      console.log('🔬 Direct API test failed:', error);
+    });
+  }, []);
+
   // Calculate job statistics
   const jobStats = React.useMemo(() => {
     if (!jobs.data) return { total: 0, completed: 0, running: 0, failed: 0, pending: 0 };
@@ -56,7 +74,15 @@ const DashboardPage: React.FC = () => {
   const isConnected = nodeStatus.isConnected && accountInfo.isConnected && jobs.isConnected && peers.isConnected;
   const hasErrors = nodeStatus.error || accountInfo.error || jobs.error || peers.error;
 
-  if (nodeStatus.isLoading && !nodeStatus.data && !nodeStatus.error) {
+  // Show loading only for the first few seconds, then show dashboard with whatever data we have
+  const [hasWaited, setHasWaited] = React.useState(false);
+  
+  React.useEffect(() => {
+    const timer = setTimeout(() => setHasWaited(true), 3000); // Wait max 3 seconds
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!hasWaited && nodeStatus.isLoading && !nodeStatus.data && !nodeStatus.error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
